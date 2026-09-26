@@ -1,0 +1,8 @@
+# Framework web (API REST)
+fastapi>=0.110
+# Servidor que ejecuta FastAPI
+uvicorn[standard]>=0.29
+# ORM: permite usar SQLite hoy y PostgreSQL en la nube mañana sin reescribir código
+SQLAlchemy>=2.0
+# Lee variables del archivo .env
+python-dotenv>=1.0

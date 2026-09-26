@@ -1,0 +1,24 @@
+@"
+# Entorno virtual
+venv/
+.venv/
+
+# Cache de Python
+__pycache__/
+*.pyc
+
+# Secretos: el .env NUNCA se sube (si se sube .env.example)
+.env
+
+# Base de datos local (cada quien genera la suya con init_db)
+data/*
+!data/.gitkeep
+*.db
+*.sqlite3
+
+# Editores / sistema
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+"@ | Set-Content -Path .gitignore -Encoding utf8
