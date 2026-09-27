@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from . import models
 from .config import APP_NAME, APP_VERSION
 from .database import Base, engine, get_db
-from .routers import devices
+from .routers import devices, syslog
 
 # Crea las tablas si no existen
 Base.metadata.create_all(bind=engine)
@@ -22,6 +22,7 @@ app = FastAPI(
 
 # Módulos de la aplicación
 app.include_router(devices.router)
+app.include_router(syslog.router)
 
 
 @app.get("/api/health", tags=["Sistema"], summary="Chequeo de salud")

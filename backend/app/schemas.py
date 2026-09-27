@@ -74,4 +74,73 @@ class DeviceOut(DeviceBase):
 
     # Permite construir este esquema directamente desde un objeto de SQLAlchemy
     model_config = ConfigDict(from_attributes=True)
+
     
+
+# ===========================================================================
+# FASE 3: Syslog y eventos
+# ===========================================================================
+from pydantic import computed_field
+from .syslog_parser import SEVERIDADES
+
+SourceType = Literal["simulado", "real", "importado"]
+EJEMPLO_SYSLOG = "<34>Oct 11 22:14:15 SIM-FW-EDGE01 sshd: Failed password for admin"
+
+
+class SyslogTexto(BaseModel):
+    """Un mensaje Syslog en texto crudo."""
+    raw: str = Field(..., min_length=1, max_length=4096, examples=[EJEMPLO_SYSLOG])
+
+
+class SyslogIn(SyslogTexto):
+    """Mensaje + IP del equipo que lo envió."""
+    source_ip: str = Field(..., examples=["192.0.2.20"])
+    source_type: SourceType = "simulado"
+
+    @field_validator("source_ip")
+    @classmethod
+    def _ip_valida(cls, v):
+        return validar_ip(v)
+
+
+class SyslogImport(BaseModel):
+    """Lote de mensajes para importar (máximo 500 por envío)."""
+    mensajes: list[SyslogIn] = Field(..., min_length=1, max_length=500)
+
+
+class IngestResult(BaseModel):
+    """Qué pasó con un mensaje recibido."""
+    resultado: Literal["nuevo", "duplicado", "descartado_tormenta", "rechazado"]
+    event_id: Optional[int] = None
+    severity: Optional[int] = None
+    severity_name: Optional[str] = None
+    facility: Optional[int] = None
+    repeat_count: Optional[int] = None
+    sospechoso: bool = False
+    motivo: Optional[str] = None
+
+
+class EventOut(BaseModel):
+    """Un evento tal como lo devuelve la API."""
+    id: int
+    received_at: datetime
+    event_time: Optional[datetime] = None
+    device_id: Optional[int] = None
+    source_ip: str
+    hostname: Optional[str] = None
+    vendor: Optional[str] = None
+    facility: int
+    severity: int
+    app_name: Optional[str] = None
+    message: str
+    source_type: str
+    repeat_count: int
+    flagged_suspicious: bool
+
+    model_config = ConfigDict(from_attributes=True)
+
+    @computed_field
+    @property
+    def severity_name(self) -> str:
+        """Nombre de la severidad (ej. 2 -> Critical), calculado automáticamente."""
+        return SEVERIDADES.get(self.severity, "?")
