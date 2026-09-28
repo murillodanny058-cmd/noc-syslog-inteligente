@@ -4,6 +4,17 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/).
 
 ## [0.2.0] - En desarrollo
 
+### Fase 5 — Generador de configuraciones y consola simulada
+
+- Generador de configuraciones Syslog comentadas para Cisco IOS, Fortinet FortiOS y Huawei VRP (`/api/config/generate`).
+- Advertencias de buenas prácticas: UDP sin cifrar, falta de NTP, nivel debug, IP pública.
+- Protección contra inyección de configuración con patrones de caracteres permitidos.
+- Consola simulada de solo lectura (`/api/console/exec`) con lista permitida, lista bloqueada explicada, bloqueo de encadenamientos y denegación por defecto.
+- Abreviaturas de comandos (`sh run`, `dis logbuffer`) y filtro `| include`.
+- Auditoría de cada comando (CONSOLE_CMD y CONSOLE_BLOCKED) con el actor: operador o agente_ia.
+- Pestañas web Configuraciones y Consola (estilo PuTTY, con historial y modo agente de IA).
+- Documentación: historias HU-16 a HU-19, pruebas de la Fase 5 y política de la consola.
+
 ### Fase 4 — Dashboard, filtros e incidentes
 
 - Gestión de incidentes (`/api/incidents`): creación manual y desde eventos, asignación, seguimiento y cierre.

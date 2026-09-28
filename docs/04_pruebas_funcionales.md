@@ -90,41 +90,41 @@ con datos **simulados**. Las capturas están en la carpeta `docs/evidencias/`.
 - **Mejora pendiente:** documentar los códigos 404 y 409 en `/docs`, que hoy
   aparecen como "Undocumented".
 
-
 ## Fase 4 — Dashboard, filtros e incidentes
 
 ### Parte 1: API de incidentes y resumen
 
-| ID | HU | Tipo | Prueba | Entrada | Esperado | Resultado | Captura |
-|---|---|---|---|---|---|---|---|
-| PF-F4-01 | HU-13 | Positiva | Crear incidente desde evento | POST `/api/incidents/from-event/1` | 201, estado "abierto" | ✅ | C35 |
-| PF-F4-02 | HU-13 | Negativa | Incidente duplicado | Mismo evento otra vez | 409 | ✅ | C36 |
-| PF-F4-03 | HU-14 | Negativa | Saltar un estado | abierto → en_progreso | 409, indica estados permitidos | ✅ | C37 |
-| PF-F4-04 | HU-14 | Positiva | Asignar responsable | `assigned_to: Dany Murillo` | 200, pasa solo a "asignado" | ✅ | C38 |
-| PF-F4-05 | HU-14 | Positiva | Iniciar trabajo | asignado → en_progreso | 200 | ✅ | C39 |
-| PF-F4-06 | HU-15 | Negativa | Cerrar sin resolución | `status: cerrado` | 422 | ✅ | C40 |
-| PF-F4-07 | HU-15 | Positiva | Cerrar con resolución | status + resolution | 200, con `closed_at` | ✅ | C41 |
-| PF-F4-08 | HU-15 | Negativa | Modificar incidente cerrado | Cambiar responsable | 409 | ✅ | C42 |
-| PF-F4-09 | HU-13 | Positiva | Incidente manual con responsable | POST `/api/incidents` | 201, estado "asignado" | ✅ | C43 |
-| PF-F4-10 | HU-11 | Positiva | Resumen del dashboard | GET `/api/dashboard/resumen` | 200, 6 secciones | ✅ | C44 |
-| PF-F4-11 | HU-15 | Positiva | Auditoría de incidentes | GET `/api/audit` | CREATE, UPDATE y CLOSE | ✅ | C45 |
+| ID       | HU    | Tipo     | Prueba                           | Entrada                            | Esperado                       | Resultado | Captura |
+| -------- | ----- | -------- | -------------------------------- | ---------------------------------- | ------------------------------ | --------- | ------- |
+| PF-F4-01 | HU-13 | Positiva | Crear incidente desde evento     | POST `/api/incidents/from-event/1` | 201, estado "abierto"          | ✅        | C35     |
+| PF-F4-02 | HU-13 | Negativa | Incidente duplicado              | Mismo evento otra vez              | 409                            | ✅        | C36     |
+| PF-F4-03 | HU-14 | Negativa | Saltar un estado                 | abierto → en_progreso              | 409, indica estados permitidos | ✅        | C37     |
+| PF-F4-04 | HU-14 | Positiva | Asignar responsable              | `assigned_to: Dany Murillo`        | 200, pasa solo a "asignado"    | ✅        | C38     |
+| PF-F4-05 | HU-14 | Positiva | Iniciar trabajo                  | asignado → en_progreso             | 200                            | ✅        | C39     |
+| PF-F4-06 | HU-15 | Negativa | Cerrar sin resolución            | `status: cerrado`                  | 422                            | ✅        | C40     |
+| PF-F4-07 | HU-15 | Positiva | Cerrar con resolución            | status + resolution                | 200, con `closed_at`           | ✅        | C41     |
+| PF-F4-08 | HU-15 | Negativa | Modificar incidente cerrado      | Cambiar responsable                | 409                            | ✅        | C42     |
+| PF-F4-09 | HU-13 | Positiva | Incidente manual con responsable | POST `/api/incidents`              | 201, estado "asignado"         | ✅        | C43     |
+| PF-F4-10 | HU-11 | Positiva | Resumen del dashboard            | GET `/api/dashboard/resumen`       | 200, 6 secciones               | ✅        | C44     |
+| PF-F4-11 | HU-15 | Positiva | Auditoría de incidentes          | GET `/api/audit`                   | CREATE, UPDATE y CLOSE         | ✅        | C45     |
 
 ### Parte 2: interfaz web
 
-| ID | HU | Tipo | Prueba | Acción | Esperado | Resultado | Captura |
-|---|---|---|---|---|---|---|---|
-| PF-F4-12 | HU-11 | Positiva | Vista Resumen | Abrir el dashboard | Tarjetas, gráfico, semáforo y listas | ✅ | C46 |
-| PF-F4-13 | HU-11 | Positiva | Simular tráfico | Botón "Simular tráfico" | 41 mensajes: 23 nuevos, 18 duplicados, 1 sospechoso | ✅ | C47 |
-| PF-F4-14 | HU-12 | Positiva | Filtros combinados | Huawei + severidad máx. 3 | 6 eventos, solo Critical y Error | ✅ | C48 |
-| PF-F4-15 | HU-13 | Positiva | Incidente desde la tabla | Botón "Crear incidente" | Incidente #3 abierto | ✅ | C49 |
-| PF-F4-16 | HU-14, HU-15 | Positiva | Ciclo con botones | Iniciar → Cerrar | Resolución corta rechazada; luego cerrado | ✅ | C50 |
-| PF-F4-17 | HU-02 | Negativa | IP real desde el formulario | IP 8.8.8.8 | Mensaje de error RFC 5737 | ✅ | C51 |
-| PF-F4-18 | HU-12 | Negativa | Ataque XSS en un log | `<img src=x onerror=alert(...)>` | Se muestra como texto, no se ejecuta | ✅ | C52 |
-| PF-F4-19 | HU-11 | Positiva | Diseño responsivo | Abrir desde un celular | Una columna, pestañas deslizables | ✅ | C53 |
+| ID       | HU           | Tipo     | Prueba                      | Acción                           | Esperado                                            | Resultado | Captura |
+| -------- | ------------ | -------- | --------------------------- | -------------------------------- | --------------------------------------------------- | --------- | ------- |
+| PF-F4-12 | HU-11        | Positiva | Vista Resumen               | Abrir el dashboard               | Tarjetas, gráfico, semáforo y listas                | ✅        | C46     |
+| PF-F4-13 | HU-11        | Positiva | Simular tráfico             | Botón "Simular tráfico"          | 41 mensajes: 23 nuevos, 18 duplicados, 1 sospechoso | ✅        | C47     |
+| PF-F4-14 | HU-12        | Positiva | Filtros combinados          | Huawei + severidad máx. 3        | 6 eventos, solo Critical y Error                    | ✅        | C48     |
+| PF-F4-15 | HU-13        | Positiva | Incidente desde la tabla    | Botón "Crear incidente"          | Incidente #3 abierto                                | ✅        | C49     |
+| PF-F4-16 | HU-14, HU-15 | Positiva | Ciclo con botones           | Iniciar → Cerrar                 | Resolución corta rechazada; luego cerrado           | ✅        | C50     |
+| PF-F4-17 | HU-02        | Negativa | IP real desde el formulario | IP 8.8.8.8                       | Mensaje de error RFC 5737                           | ✅        | C51     |
+| PF-F4-18 | HU-12        | Negativa | Ataque XSS en un log        | `<img src=x onerror=alert(...)>` | Se muestra como texto, no se ejecuta                | ✅        | C52     |
+| PF-F4-19 | HU-11        | Positiva | Diseño responsivo           | Abrir desde un celular           | Una columna, pestañas deslizables                   | ✅        | C53     |
 
 **Resumen Fase 4:** 19 pruebas ejecutadas, 19 exitosas (12 positivas y 7 negativas).
 
 ### Observaciones
+
 - **Métricas de NOC:** el incidente #1 tuvo un tiempo de reconocimiento (MTTA) de
   5 min 28 s y un tiempo de resolución (MTTR) de 10 min 31 s. El #2 tardó 3 h 18 min.
 - **Ventana de mantenimiento:** los equipos en mantenimiento aparecen en gris
@@ -138,3 +138,58 @@ con datos **simulados**. Las capturas están en la carpeta `docs/evidencias/`.
   final de cada bloque para verificar que se copió completo.
 
 <!-- FIN PRUEBAS FASE 4 -->
+
+## Fase 5 — Generador de configuraciones y consola simulada
+
+### Parte 1: API
+
+| ID       | HU    | Tipo     | Prueba                     | Entrada                               | Esperado                                    | Resultado | Captura |
+| -------- | ----- | -------- | -------------------------- | ------------------------------------- | ------------------------------------------- | --------- | ------- |
+| PF-F5-01 | HU-16 | Positiva | Configuración Cisco        | UDP, sin NTP                          | Configuración comentada y 3 advertencias    | ✅        | C54     |
+| PF-F5-02 | HU-16 | Positiva | Configuración Fortinet     | TCP, con NTP                          | `set mode reliable`, 1 advertencia          | ✅        | C55     |
+| PF-F5-03 | HU-16 | Positiva | Configuración Huawei       | UDP, con NTP                          | `info-center loghost`, 2 advertencias       | ✅        | C56     |
+| PF-F5-04 | HU-16 | Negativa | Inyección de configuración | Interfaz `Loopback0\nreload`          | 422, `string_pattern_mismatch`              | ✅        | C57     |
+| PF-F5-05 | HU-17 | Positiva | `show logging`             | SIM-CORE-SW01                         | Permitido, últimos 15 eventos               | ✅        | C58     |
+| PF-F5-06 | HU-17 | Positiva | Abreviatura y filtro       | `sh run \| include logging`           | Solo las 6 líneas con "logging"             | ✅        | C59     |
+| PF-F5-07 | HU-18 | Negativa | Comando peligroso          | `configure terminal`                  | Bloqueado, con motivo                       | ✅        | C60     |
+| PF-F5-08 | HU-18 | Negativa | Encadenamiento             | `show clock; reload`                  | Inválido                                    | ✅        | C61     |
+| PF-F5-09 | HU-18 | Negativa | Comando no previsto        | `ping 192.0.2.1`                      | No permitido (denegar por defecto)          | ✅        | C62     |
+| PF-F5-10 | HU-19 | Negativa | Agente de IA peligroso     | `execute factoryreset` como agente_ia | Bloqueado                                   | ✅        | C63     |
+| PF-F5-11 | HU-17 | Positiva | Consola Huawei             | `dis logbuffer`                       | Permitido, prompt `<SIM-AR-RTR01>`          | ✅        | C64     |
+| PF-F5-12 | HU-19 | Positiva | Auditoría de la consola    | GET `/api/audit`                      | CONSOLE_CMD y CONSOLE_BLOCKED con agente_ia | ✅        | C65     |
+
+### Parte 2: interfaz web
+
+| ID       | HU    | Tipo     | Prueba                           | Acción                                        | Esperado                                              | Resultado | Captura |
+| -------- | ----- | -------- | -------------------------------- | --------------------------------------------- | ----------------------------------------------------- | --------- | ------- |
+| PF-F5-13 | HU-16 | Positiva | Generador web                    | SIM-FW-EDGE01, TCP, NTP                       | Configuración formateada, advertencias y verificación | ✅        | C66     |
+| PF-F5-14 | HU-16 | Negativa | Inyección desde el formulario    | Interfaz `Loopback0;reload`                   | Mensaje de error del servidor                         | ✅        | C67     |
+| PF-F5-15 | HU-17 | Positiva | De la configuración a la consola | Botón "get log syslogd setting"               | Consola abierta con equipo y comando                  | ✅        | C68     |
+| PF-F5-16 | HU-18 | Positiva | Sesión Cisco completa            | help, sh ip int br, conf t, reload, `;`, ping | Colores por categoría                                 | ✅        | C69     |
+| PF-F5-17 | HU-19 | Positiva | Modo agente de IA                | Mismos comandos como humano y como agente     | Mismas reglas, marca `[agente IA]`                    | ✅        | C70     |
+| PF-F5-18 | HU-17 | Positiva | Historial de comandos            | Flecha arriba                                 | Aparecen los comandos anteriores                      | ✅        | —       |
+| PF-F5-19 | HU-17 | Positiva | Diseño responsivo                | Vista de celular                              | Terminal y política en una columna                    | ✅        | C71     |
+
+**Resumen Fase 5:** 19 pruebas ejecutadas, 19 exitosas (12 positivas y 7 negativas).
+
+### Observaciones
+
+- **Generar no es aplicar:** la configuración generada para el firewall usa TCP
+  (`reliable`), pero la verificación en la consola respondió `mode: udp`. La
+  consola, por ser de solo lectura, no puede aplicar cambios: la ejecución queda
+  en manos de un humano autorizado, como exige el flujo obligatorio.
+- **Cuatro tipos de inyección bloqueados en el proyecto:** instrucciones para IA
+  en logs (Fase 3), falsificación de logs con saltos de línea (Fase 3), XSS en el
+  navegador (Fase 4) e inyección de configuración (Fase 5).
+- **Código HTTP 200 en rechazos de la consola:** la consola funcionó y respondió
+  con un rechazo, igual que un equipo real responde "% Invalid input". El
+  resultado se informa en los campos `categoria` y `permitido`.
+- **Mejora resuelta:** los intentos rechazados en la consola quedan en la
+  auditoría (CONSOLE_BLOCKED), algo pendiente desde las Fases 2 y 3.
+- **Pendiente para la Fase 6:** limitar automáticamente a un agente de IA que
+  acumule varios intentos bloqueados.
+- **Limitación:** la sintaxis de las configuraciones puede variar según la
+  versión del sistema operativo de cada equipo; deben revisarse con la
+  documentación oficial antes de aplicarse.
+
+<!-- FIN PRUEBAS FASE 5 -->

@@ -214,3 +214,81 @@ manual, **para** registrar los problemas que alguien debe atender.
 **Pruebas:** PF-F4-06, PF-F4-07, PF-F4-08, PF-F4-11, PF-F4-16
 
 <!-- FIN FASE 4 -->
+
+---
+
+## Módulo 5: Herramientas del administrador (Fase 5)
+
+### HU-16 — Generar configuraciones Syslog
+
+**Como** administrador de red, **quiero** generar la configuración Syslog de un
+equipo Cisco, Fortinet o Huawei, **para** que envíe sus logs al NOC sin tener
+que recordar la sintaxis de cada fabricante.
+
+**Criterios de aceptación**
+
+1. **Dado** que elijo fabricante, servidor, puerto, protocolo, severidad y
+   facility, **cuando** genero, **entonces** recibo la configuración completa
+   con un comentario que explica cada bloque.
+2. **Dado** una configuración con UDP, sin NTP o con nivel 7, **cuando** se
+   genera, **entonces** se muestran advertencias de buenas prácticas.
+3. **Dado** que un campo contiene caracteres para colar comandos (salto de línea,
+   punto y coma), **cuando** genero, **entonces** se rechaza (inyección de
+   configuración).
+4. **Dado** una configuración generada, **cuando** la veo, **entonces** puedo
+   copiarla y ver los comandos para verificarla.
+
+**Pruebas:** PF-F5-01 a PF-F5-04, PF-F5-13, PF-F5-14
+
+### HU-17 — Consultar equipos desde una consola de solo lectura
+
+**Como** operador NOC, **quiero** una consola tipo PuTTY para consultar el estado
+de los equipos, **para** verificar configuraciones y revisar logs sin riesgo de
+modificar nada.
+
+**Criterios de aceptación**
+
+1. **Dado** un comando permitido (show, display, get), **cuando** lo escribo,
+   **entonces** recibo una respuesta simulada con el formato del fabricante.
+2. **Dado** que uso abreviaturas (`sh run`, `dis logbuffer`) o el filtro
+   `| include`, **cuando** los escribo, **entonces** la consola los entiende.
+3. **Dado** un comando de verificación del generador, **cuando** le hago clic,
+   **entonces** se abre la consola con el equipo y el comando listos.
+
+**Pruebas:** PF-F5-05, PF-F5-06, PF-F5-11, PF-F5-15
+
+### HU-18 — Impedir comandos peligrosos
+
+**Como** analista de seguridad, **quiero** que la consola bloquee los comandos
+que modifican o dañan los equipos, **para** que nadie cause una interrupción
+desde el NOC.
+
+**Criterios de aceptación**
+
+1. **Dado** un comando peligroso conocido (configure, reload, erase, execute),
+   **cuando** se escribe, **entonces** se bloquea y se explica el motivo.
+2. **Dado** un intento de encadenar comandos (`;`, `&&`, `|` distinto de
+   include), **cuando** se escribe, **entonces** se rechaza completo.
+3. **Dado** un comando que no está en la lista permitida, **cuando** se escribe,
+   **entonces** se niega (denegar por defecto).
+
+**Pruebas:** PF-F5-07, PF-F5-08, PF-F5-09, PF-F5-16
+
+### HU-19 — Trazabilidad de las acciones de agentes de IA
+
+**Como** analista de seguridad, **quiero** que cada comando quede registrado con
+su autor (humano o agente de IA), **para** detectar a tiempo si un agente
+intenta acciones maliciosas.
+
+**Criterios de aceptación**
+
+1. **Dado** cualquier comando, permitido o rechazado, **cuando** se ejecuta,
+   **entonces** queda en la auditoría como CONSOLE_CMD o CONSOLE_BLOCKED.
+2. **Dado** que el autor es un agente de IA, **cuando** se registra, **entonces**
+   el actor es "agente_ia" y la interfaz lo marca visualmente.
+3. **Dado** un agente de IA, **cuando** intenta un comando peligroso,
+   **entonces** se aplican las mismas reglas que a un humano.
+
+**Pruebas:** PF-F5-10, PF-F5-12, PF-F5-17
+
+<!-- FIN FASE 5 -->

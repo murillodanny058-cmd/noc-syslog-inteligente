@@ -150,3 +150,42 @@ Está hecho con HTML, CSS y JavaScript sin frameworks.
 | Validación en el servidor, no solo en el formulario   | Que alguien salte las reglas usando la API directamente. |
 
 <!-- FIN ARQUITECTURA FASE 4 -->
+
+## 6. Política de la consola simulada
+
+```mermaid
+flowchart TD
+    A["Comando recibido<br/>operador o agente_ia"] --> B{"¿Intenta encadenar<br/>o redirigir comandos?"}
+    B -->|Sí| X1["INVÁLIDO"]
+    B -->|No| C{"¿Tiene un filtro<br/>distinto de include?"}
+    C -->|Sí| X1
+    C -->|No| D{"¿Está en la lista<br/>bloqueada?"}
+    D -->|Sí| X2["BLOQUEADO<br/>con explicación"]
+    D -->|No| E{"¿Está en la lista<br/>permitida?"}
+    E -->|No| X3["NO PERMITIDO<br/>denegar por defecto"]
+    E -->|Sí| F["PERMITIDO<br/>respuesta simulada"]
+    X1 --> Z["Auditoría: CONSOLE_BLOCKED"]
+    X2 --> Z
+    X3 --> Z
+    F --> Y["Auditoría: CONSOLE_CMD"]
+```
+
+La lista **permitida** decide qué se ejecuta. La lista **bloqueada** solo sirve
+para explicar por qué ciertos comandos son peligrosos. Así, un comando que nadie
+previó queda negado automáticamente.
+
+| Componente                   | Archivo                               | Función                                                                                                    |
+| ---------------------------- | ------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| Generador de configuraciones | `backend/app/config_generator.py`     | Plantillas comentadas para Cisco IOS, Fortinet FortiOS y Huawei VRP, con advertencias de buenas prácticas. |
+| Consola simulada             | `backend/app/console_sim.py`          | Política de comandos, respuestas simuladas por fabricante y auditoría de cada intento.                     |
+| Endpoints                    | `backend/app/routers/herramientas.py` | `/api/config/generate`, `/api/console/commands` y `/api/console/exec`.                                     |
+| Interfaz                     | `frontend/herramientas.js`            | Pestañas Configuraciones y Consola.                                                                        |
+
+### Defensa contra la inyección de configuración
+
+Los campos que se insertan en las plantillas (interfaz, zona horaria, nombre del
+equipo, direcciones IP) se validan con **patrones de caracteres permitidos**. No
+se buscan palabras peligrosas: se permite solo lo que cada campo necesita. Así,
+un salto de línea o un punto y coma nunca llegan a la configuración.
+
+<!-- FIN ARQUITECTURA FASE 5 -->

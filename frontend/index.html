@@ -29,6 +29,10 @@
       <button class="pestana" data-vista="eventos">Eventos</button>
       <button class="pestana" data-vista="incidentes">Incidentes</button>
       <button class="pestana" data-vista="inventario">Inventario</button>
+      <button class="pestana" data-vista="configuraciones">
+        Configuraciones
+      </button>
+      <button class="pestana" data-vista="consola">Consola</button>
     </nav>
 
     <main>
@@ -243,6 +247,186 @@
           </table>
         </div>
       </section>
+      <!-- ================= VISTA 5: CONFIGURACIONES ================= -->
+      <section id="vista-configuraciones" class="vista">
+        <form id="form-config" class="formulario panel">
+          <h2 class="ancho">Generador de configuraciones Syslog</h2>
+          <label>Equipo del inventario<select id="cfg-equipo"></select></label>
+          <label
+            >Fabricante
+            <select name="vendor">
+              <option>Cisco</option>
+              <option>Fortinet</option>
+              <option>Huawei</option>
+            </select>
+          </label>
+          <label
+            >Nombre del equipo<input
+              name="nombre_equipo"
+              maxlength="60"
+              placeholder="SIM-CORE-SW01"
+          /></label>
+          <label
+            >IP del servidor NOC<input
+              name="servidor_ip"
+              required
+              value="192.0.2.100"
+          /></label>
+          <label
+            >Puerto<input
+              name="puerto"
+              type="number"
+              min="1"
+              max="65535"
+              value="514"
+              required
+          /></label>
+          <label
+            >Protocolo
+            <select name="protocolo">
+              <option value="udp">UDP</option>
+              <option value="tcp">TCP</option>
+            </select>
+          </label>
+          <label
+            >Severidad mínima
+            <select name="severidad_minima">
+              <option value="0">0 - Emergency</option>
+              <option value="1">1 - Alert</option>
+              <option value="2">2 - Critical</option>
+              <option value="3">3 - Error</option>
+              <option value="4">4 - Warning</option>
+              <option value="5">5 - Notice</option>
+              <option value="6" selected>6 - Informational</option>
+              <option value="7">7 - Debug</option>
+            </select>
+          </label>
+          <label
+            >Facility
+            <select name="facility">
+              <option>local0</option>
+              <option>local1</option>
+              <option>local2</option>
+              <option>local3</option>
+              <option>local4</option>
+              <option>local5</option>
+              <option>local6</option>
+              <option selected>local7</option>
+            </select>
+          </label>
+          <label
+            >Interfaz de origen<input
+              name="interfaz_origen"
+              maxlength="41"
+              placeholder="Opcional: Loopback0"
+          /></label>
+          <label
+            >Servidor NTP<input
+              name="ntp_servidor"
+              placeholder="Opcional: 192.0.2.123"
+          /></label>
+          <label
+            >Zona horaria<input
+              name="zona_horaria"
+              value="COT"
+              maxlength="5"
+              required
+          /></label>
+          <label
+            >Desfase (horas)<input
+              name="desfase_horas"
+              type="number"
+              min="-12"
+              max="14"
+              value="-5"
+              required
+          /></label>
+          <div class="botones ancho">
+            <button type="submit" class="btn">Generar configuración</button>
+          </div>
+        </form>
+
+        <div id="config-resultado" class="rejilla-config" hidden>
+          <article class="panel">
+            <div class="cabecera-panel">
+              <h2>Configuración generada</h2>
+              <button
+                type="button"
+                id="btn-copiar-config"
+                class="btn mini secundario"
+              >
+                Copiar
+              </button>
+            </div>
+            <pre id="config-salida" class="codigo"></pre>
+          </article>
+          <div class="columna">
+            <article class="panel panel-aviso">
+              <h2>⚠ Advertencias</h2>
+              <ul id="config-advertencias" class="lista-simple"></ul>
+            </article>
+            <article class="panel">
+              <h2>Verificación</h2>
+              <p class="nota">
+                Haga clic en un comando para probarlo en la consola simulada.
+              </p>
+              <div id="config-verificacion" class="botones"></div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= VISTA 6: CONSOLA ================= -->
+      <section id="vista-consola" class="vista">
+        <div class="barra-consola panel">
+          <label>Equipo<select id="con-equipo"></select></label>
+          <label
+            >Quién escribe
+            <select id="con-actor">
+              <option value="operador">Operador (humano)</option>
+              <option value="agente_ia">Agente de IA (simulado)</option>
+            </select>
+          </label>
+          <button type="button" id="btn-limpiar-consola" class="btn secundario">
+            Reconectar / limpiar
+          </button>
+        </div>
+        <p id="aviso-ia" class="nota aviso-ia" hidden>
+          🤖 Modo agente de IA: cada comando queda en la auditoría a nombre de
+          "agente_ia".
+        </p>
+        <div class="rejilla-consola">
+          <div id="terminal" class="terminal">
+            <div
+              id="terminal-salida"
+              class="terminal-salida"
+              aria-live="polite"
+            ></div>
+            <form id="form-consola" class="terminal-entrada">
+              <span id="con-prompt" class="t-prompt">&gt;</span>
+              <input
+                id="con-comando"
+                autocomplete="off"
+                spellcheck="false"
+                maxlength="200"
+                aria-label="Comando"
+              />
+            </form>
+          </div>
+          <aside class="panel">
+            <h2>Política de la consola</h2>
+            <p class="nota">
+              Lo que no está en la lista de permitidos se niega (denegar por
+              defecto).
+            </p>
+            <h3 class="subtitulo-panel">✅ Permitidos</h3>
+            <ul id="politica-permitidos" class="lista-simple mono"></ul>
+            <h3 class="subtitulo-panel">🚫 Bloqueados</h3>
+            <ul id="politica-bloqueados" class="lista-simple"></ul>
+          </aside>
+        </div>
+      </section>
+      <!-- FIN VISTAS FASE 5 -->
     </main>
 
     <footer class="pie">
@@ -254,5 +438,6 @@
     <div id="avisos" class="avisos" aria-live="polite"></div>
 
     <script src="app.js"></script>
+    <script src="herramientas.js"></script>
   </body>
 </html>
