@@ -257,3 +257,50 @@ class ConsoleResult(BaseModel):
     motivo: Optional[str] = None
 
 # --- FIN DEL BLOQUE FASE 5 ---
+
+
+# ===========================================================================
+# FASE 6: Propuestas de acción con aprobación humana
+# ===========================================================================
+class ProposalCreate(BaseModel):
+    """Una acción propuesta para resolver un incidente."""
+    incident_id: int = Field(..., examples=[3])
+    action_text: str = Field(..., min_length=10, max_length=500,
+                             examples=["Reemplazar la fuente de poder del slot 15 en SIM-AR-RTR01 (sim)"])
+    proposed_by: Literal["humano", "agente_ia"] = "humano"
+
+
+class ProposalReview(BaseModel):
+    """Revisión HUMANA: aprobar o rechazar."""
+    decision: Literal["aprobada", "rechazada"]
+    reviewed_by: str = Field(..., min_length=2, max_length=100, pattern=PATRON_PERSONA,
+                             examples=["Dany Murillo"])
+    nota: Optional[str] = Field(None, max_length=500)
+
+
+class ProposalExecute(BaseModel):
+    """Ejecución autorizada (SIMULADA)."""
+    ejecutado_por: str = Field(..., min_length=2, max_length=100, pattern=PATRON_PERSONA,
+                               examples=["Dany Murillo"])
+
+
+class ProposalVerify(BaseModel):
+    """Verificación posterior a la ejecución."""
+    notas: str = Field(..., min_length=10, max_length=1000,
+                       examples=["La fuente quedó operativa y cesaron las alarmas (sim)"])
+
+
+class ProposalOut(BaseModel):
+    id: int
+    incident_id: int
+    action_text: str
+    proposed_by: str
+    status: str
+    reviewed_by: Optional[str] = None
+    reviewed_at: Optional[datetime] = None
+    verification_notes: Optional[str] = None
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+# --- FIN DEL BLOQUE FASE 6 ---

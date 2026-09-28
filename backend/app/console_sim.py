@@ -2,6 +2,7 @@
 Consola SIMULADA de solo lectura (tipo PuTTY).
 
 Política de comandos, en este orden:
+  0. Agente de IA suspendido -> se rechaza todo (política de IA, Fase 6).
   1. Caracteres prohibidos  -> no se permite encadenar ni redirigir (; & ` $ < > \\ ||).
   2. Filtro                 -> solo se acepta "| include <palabra>".
   3. Lista BLOQUEADA        -> comandos peligrosos conocidos, con su explicación.
@@ -21,6 +22,7 @@ from sqlalchemy.orm import Session
 
 from .config_generator import generar
 from .models import AuditLog, Device, SyslogEvent
+from .politica_ia import MOTIVO_SUSPENSION, agente_suspendido
 from .schemas import ConfigRequest
 from .syslog_parser import SEVERIDADES
 
@@ -202,6 +204,10 @@ def ejecutar(db: Session, eq: Device, comando_original: str, actor: str) -> dict
         _auditar(db, eq, comando, actor, permitido, motivo)
         return {"prompt": prompt, "comando": comando, "categoria": categoria,
                 "permitido": permitido, "salida": salida, "motivo": motivo}
+
+    # 0. Política de IA: un agente suspendido no puede ejecutar nada
+    if actor == "agente_ia" and agente_suspendido(db):
+        return responder("bloqueado", motivo=MOTIVO_SUSPENSION)
 
     if eq.vendor not in PERMITIDOS:
         return responder("no_permitido", motivo="La consola solo está disponible para Cisco, Fortinet y Huawei.")

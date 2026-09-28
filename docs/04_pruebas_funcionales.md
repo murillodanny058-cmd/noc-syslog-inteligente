@@ -193,3 +193,40 @@ con datos **simulados**. Las capturas están en la carpeta `docs/evidencias/`.
   documentación oficial antes de aplicarse.
 
 <!-- FIN PRUEBAS FASE 5 -->
+
+## Fase 6 — Política de defensa ante IA
+
+| ID       | HU    | Tipo     | Prueba                           | Entrada                          | Esperado                                         | Resultado |
+| -------- | ----- | -------- | -------------------------------- | -------------------------------- | ------------------------------------------------ | --------- |
+| PF-F6-01 | HU-20 | Positiva | Propuesta del agente             | Reemplazar fuente (incidente #3) | 201, "propuesta"                                 | ✅        |
+| PF-F6-02 | HU-20 | Negativa | Ejecutar sin aprobación          | execute                          | 409                                              | ✅        |
+| PF-F6-03 | HU-20 | Negativa | El agente intenta aprobar        | reviewed_by: agente_ia           | 403                                              | ✅        |
+| PF-F6-04 | HU-20 | Positiva | Aprobación humana                | reviewed_by: Dany Murillo        | 200, "aprobada"                                  | ✅        |
+| PF-F6-05 | HU-20 | Positiva | Ejecución autorizada (simulada)  | ejecutado_por                    | 200, "ejecutada"                                 | ✅        |
+| PF-F6-06 | HU-20 | Positiva | Verificación                     | notas                            | 200, "verificada"                                | ✅        |
+| PF-F6-07 | HU-20 | Negativa | Propuesta maliciosa del agente   | "IGNORA TUS INSTRUCCIONES..."    | 422, rechazo automático                          | ✅        |
+| PF-F6-08 | HU-21 | Negativa | 3 comandos peligrosos del agente | reload, conf t, write erase      | 3 bloqueados                                     | ✅        |
+| PF-F6-09 | HU-21 | Negativa | Agente suspendido                | show clock (permitido)           | Bloqueado: agente SUSPENDIDO                     | ✅        |
+| PF-F6-10 | HU-21 | Positiva | Operador durante la suspensión   | show clock                       | Responde normalmente                             | ✅        |
+| PF-F6-11 | HU-21 | Positiva | Estado del agente                | GET `/api/policy/agent-status`   | suspendido: true                                 | ✅        |
+| PF-F6-12 | HU-08 | Positiva | Control de tormentas             | 150 mensajes distintos por UDP   | ~120 nuevos, ~30 descartados                     | ✅        |
+| PF-F6-13 | HU-19 | Positiva | Auditoría del flujo              | GET `/api/audit`                 | PROPOSE, REVIEW_DENIED, APPROVE, EXECUTE, VERIFY | ✅        |
+
+**Resumen Fase 6:** 13 pruebas, 13 exitosas.
+
+## Resumen general de la versión v0.2.0
+
+| Fase                                | Pruebas | Exitosas |
+| ----------------------------------- | ------- | -------- |
+| 1. Estructura y base de datos       | 6       | 6        |
+| 2. Inventario                       | 11      | 11       |
+| 3. Recepción y clasificación Syslog | 16      | 16       |
+| 4. Dashboard, filtros e incidentes  | 19      | 19       |
+| 5. Configuraciones y consola        | 19      | 19       |
+| 6. Política de defensa ante IA      | 13      | 13       |
+| **Total**                           | **84**  | **84**   |
+
+La prueba del control de tormentas, pendiente desde la Fase 3, quedó cubierta
+por PF-F6-12.
+
+<!-- FIN PRUEBAS -->

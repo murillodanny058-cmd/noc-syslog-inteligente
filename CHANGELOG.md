@@ -2,7 +2,15 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es/).
 
-## [0.2.0] - En desarrollo
+## [0.2.0] - 2026-09-28 — MVP
+
+### Fase 6 — Política de defensa ante IA y cierre
+
+- Flujo obligatorio de acciones: propuesta, revisión humana, aprobación, ejecución autorizada (simulada), verificación y auditoría (`/api/proposals`).
+- Un agente de IA puede proponer, pero nunca aprobar; sus propuestas sospechosas se rechazan automáticamente.
+- Suspensión automática de agentes de IA tras 3 acciones rechazadas en 10 minutos (`/api/policy/agent-status`).
+- Script de prueba del control de tormentas.
+- Documentación: política de defensa ante IA, manual de usuario, índice de evidencias, historias HU-20 y HU-21, pruebas de la Fase 6 y README definitivo.
 
 ### Fase 5 — Generador de configuraciones y consola simulada
 

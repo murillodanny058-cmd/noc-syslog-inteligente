@@ -292,3 +292,41 @@ intenta acciones maliciosas.
 **Pruebas:** PF-F5-10, PF-F5-12, PF-F5-17
 
 <!-- FIN FASE 5 -->
+
+
+---
+
+## Módulo 6: Política de defensa ante IA (Fase 6)
+
+### HU-20 — Aprobar acciones antes de ejecutarlas
+**Como** operador NOC, **quiero** que toda acción pase por mi aprobación,
+**para** que ningún agente de IA actúe por su cuenta.
+
+**Criterios de aceptación**
+1. **Dado** una propuesta, **cuando** intento ejecutarla sin aprobación,
+   **entonces** se rechaza con el código 409.
+2. **Dado** una propuesta, **cuando** la revisión la firma un agente de IA,
+   **entonces** se rechaza con el código 403.
+3. **Dado** una propuesta aprobada por un humano, **cuando** se ejecuta y se
+   verifica, **entonces** cada paso queda en la auditoría.
+4. **Dado** una propuesta de un agente con instrucciones sospechosas, **cuando**
+   se envía, **entonces** se rechaza automáticamente.
+
+**Pruebas:** PF-F6-01 a PF-F6-07
+
+### HU-21 — Suspender automáticamente a un agente sospechoso
+**Como** analista de seguridad, **quiero** que un agente de IA quede suspendido
+cuando acumula acciones rechazadas, **para** contener un agente manipulado sin
+esperar a que un humano lo note.
+
+**Criterios de aceptación**
+1. **Dado** que un agente acumula 3 comandos bloqueados en 10 minutos, **cuando**
+   pide otro comando, aunque esté permitido, **entonces** se rechaza.
+2. **Dado** un agente suspendido, **cuando** un operador humano usa la consola,
+   **entoncSes** puede trabajar normalmente.
+3. **Dado** que consulto el estado del agente, **cuando** está suspendido,
+   **entonces** se informa con el número de bloqueos recientes.
+
+**Pruebas:** PF-F6-08 a PF-F6-11
+
+<!-- FIN FASE 6 -->

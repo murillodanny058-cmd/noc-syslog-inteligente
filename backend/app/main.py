@@ -1,7 +1,7 @@
 """
 Servidor principal del NOC Syslog Inteligente.
   - /api/...  -> la API (inventario, syslog, eventos, incidentes, dashboard,
-                 herramientas y auditoría)
+                 herramientas, política de IA y auditoría)
   - /docs     -> documentación interactiva de la API
   - /         -> el dashboard web (carpeta frontend/)
 """
@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from . import models
 from .config import APP_NAME, APP_VERSION, BASE_DIR
 from .database import Base, engine, get_db
-from .routers import dashboard, devices, herramientas, incidents, syslog
+from .routers import dashboard, devices, herramientas, incidents, politica, syslog
 
 # Crea las tablas si no existen
 Base.metadata.create_all(bind=engine)
@@ -30,6 +30,7 @@ app.include_router(devices.router)
 app.include_router(syslog.router)
 app.include_router(incidents.router)
 app.include_router(herramientas.router)
+app.include_router(politica.router)
 
 
 @app.get("/api/health", tags=["Sistema"], summary="Chequeo de salud")
