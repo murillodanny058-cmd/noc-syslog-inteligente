@@ -144,3 +144,54 @@ class EventOut(BaseModel):
     def severity_name(self) -> str:
         """Nombre de la severidad (ej. 2 -> Critical), calculado automáticamente."""
         return SEVERIDADES.get(self.severity, "?")
+
+
+
+# ===========================================================================
+# FASE 4: Incidentes
+# ===========================================================================
+IncidentStatus = Literal["abierto", "asignado", "en_progreso", "cerrado"]
+
+# Nombre de una persona: letras (con tildes), números, espacios, punto, guion
+PATRON_PERSONA = r"^[A-Za-zÁÉÍÓÚáéíóúÑñÜü0-9 ._-]+$"
+
+
+class IncidentCreate(BaseModel):
+    """Datos para CREAR un incidente manualmente."""
+    title: str = Field(..., min_length=3, max_length=200,
+                       examples=["Caída de enlace en SIM-CORE-SW01"])
+    description: Optional[str] = Field(None, max_length=2000)
+    severity: int = Field(..., ge=0, le=7, examples=[3])
+    device_id: Optional[int] = None
+    event_id: Optional[int] = None
+    assigned_to: Optional[str] = Field(None, min_length=2, max_length=100, pattern=PATRON_PERSONA)
+
+
+class IncidentUpdate(BaseModel):
+    """Seguimiento: cambiar estado, responsable o escribir la resolución."""
+    status: Optional[IncidentStatus] = None
+    assigned_to: Optional[str] = Field(None, min_length=2, max_length=100, pattern=PATRON_PERSONA)
+    resolution: Optional[str] = Field(None, min_length=10, max_length=2000)
+
+
+class IncidentOut(BaseModel):
+    """Un incidente tal como lo devuelve la API."""
+    id: int
+    title: str
+    description: Optional[str] = None
+    severity: int
+    status: str
+    assigned_to: Optional[str] = None
+    device_id: Optional[int] = None
+    event_id: Optional[int] = None
+    resolution: Optional[str] = None
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+    closed_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+    @computed_field
+    @property
+    def severity_name(self) -> str:
+        return SEVERIDADES.get(self.severity, "?")

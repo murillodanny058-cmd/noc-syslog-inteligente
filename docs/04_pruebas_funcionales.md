@@ -89,3 +89,52 @@ con datos **simulados**. Las capturas están en la carpeta `docs/evidencias/`.
   no se alcanzó en las pruebas. Se verificará en la Fase 6.
 - **Mejora pendiente:** documentar los códigos 404 y 409 en `/docs`, que hoy
   aparecen como "Undocumented".
+
+
+## Fase 4 — Dashboard, filtros e incidentes
+
+### Parte 1: API de incidentes y resumen
+
+| ID | HU | Tipo | Prueba | Entrada | Esperado | Resultado | Captura |
+|---|---|---|---|---|---|---|---|
+| PF-F4-01 | HU-13 | Positiva | Crear incidente desde evento | POST `/api/incidents/from-event/1` | 201, estado "abierto" | ✅ | C35 |
+| PF-F4-02 | HU-13 | Negativa | Incidente duplicado | Mismo evento otra vez | 409 | ✅ | C36 |
+| PF-F4-03 | HU-14 | Negativa | Saltar un estado | abierto → en_progreso | 409, indica estados permitidos | ✅ | C37 |
+| PF-F4-04 | HU-14 | Positiva | Asignar responsable | `assigned_to: Dany Murillo` | 200, pasa solo a "asignado" | ✅ | C38 |
+| PF-F4-05 | HU-14 | Positiva | Iniciar trabajo | asignado → en_progreso | 200 | ✅ | C39 |
+| PF-F4-06 | HU-15 | Negativa | Cerrar sin resolución | `status: cerrado` | 422 | ✅ | C40 |
+| PF-F4-07 | HU-15 | Positiva | Cerrar con resolución | status + resolution | 200, con `closed_at` | ✅ | C41 |
+| PF-F4-08 | HU-15 | Negativa | Modificar incidente cerrado | Cambiar responsable | 409 | ✅ | C42 |
+| PF-F4-09 | HU-13 | Positiva | Incidente manual con responsable | POST `/api/incidents` | 201, estado "asignado" | ✅ | C43 |
+| PF-F4-10 | HU-11 | Positiva | Resumen del dashboard | GET `/api/dashboard/resumen` | 200, 6 secciones | ✅ | C44 |
+| PF-F4-11 | HU-15 | Positiva | Auditoría de incidentes | GET `/api/audit` | CREATE, UPDATE y CLOSE | ✅ | C45 |
+
+### Parte 2: interfaz web
+
+| ID | HU | Tipo | Prueba | Acción | Esperado | Resultado | Captura |
+|---|---|---|---|---|---|---|---|
+| PF-F4-12 | HU-11 | Positiva | Vista Resumen | Abrir el dashboard | Tarjetas, gráfico, semáforo y listas | ✅ | C46 |
+| PF-F4-13 | HU-11 | Positiva | Simular tráfico | Botón "Simular tráfico" | 41 mensajes: 23 nuevos, 18 duplicados, 1 sospechoso | ✅ | C47 |
+| PF-F4-14 | HU-12 | Positiva | Filtros combinados | Huawei + severidad máx. 3 | 6 eventos, solo Critical y Error | ✅ | C48 |
+| PF-F4-15 | HU-13 | Positiva | Incidente desde la tabla | Botón "Crear incidente" | Incidente #3 abierto | ✅ | C49 |
+| PF-F4-16 | HU-14, HU-15 | Positiva | Ciclo con botones | Iniciar → Cerrar | Resolución corta rechazada; luego cerrado | ✅ | C50 |
+| PF-F4-17 | HU-02 | Negativa | IP real desde el formulario | IP 8.8.8.8 | Mensaje de error RFC 5737 | ✅ | C51 |
+| PF-F4-18 | HU-12 | Negativa | Ataque XSS en un log | `<img src=x onerror=alert(...)>` | Se muestra como texto, no se ejecuta | ✅ | C52 |
+| PF-F4-19 | HU-11 | Positiva | Diseño responsivo | Abrir desde un celular | Una columna, pestañas deslizables | ✅ | C53 |
+
+**Resumen Fase 4:** 19 pruebas ejecutadas, 19 exitosas (12 positivas y 7 negativas).
+
+### Observaciones
+- **Métricas de NOC:** el incidente #1 tuvo un tiempo de reconocimiento (MTTA) de
+  5 min 28 s y un tiempo de resolución (MTTR) de 10 min 31 s. El #2 tardó 3 h 18 min.
+- **Ventana de mantenimiento:** los equipos en mantenimiento aparecen en gris
+  aunque tengan eventos críticos, porque se espera que generen alarmas.
+- **Protección XSS:** el texto de los logs se escapa en el navegador. Es la
+  regla de oro aplicada a la interfaz: los logs son datos, nunca código.
+- **Limitación conocida:** la conexión usa HTTP sin cifrar y no hay usuarios ni
+  contraseñas. Se abordará en la v1.0.0 (HTTPS y autenticación).
+- **Lección aprendida:** al copiar código largo, una copia incompleta del CSS
+  dejó la mitad de los estilos sin aplicar. Se adoptaron marcas de "FIN" al
+  final de cada bloque para verificar que se copió completo.
+
+<!-- FIN PRUEBAS FASE 4 -->

@@ -118,3 +118,99 @@ severidad y sospecha, **para** encontrar rápidamente lo que necesito.
    veo los eventos marcados.
 
 **Pruebas:** PF-F3-07, PF-F3-08, PF-F3-09
+
+---
+
+## Módulo 3: Dashboard y filtros (Fase 4)
+
+### HU-11 — Ver el estado general del NOC
+
+**Como** operador NOC, **quiero** un tablero con el resumen de la red,
+**para** saber de un vistazo qué requiere atención.
+
+**Criterios de aceptación**
+
+1. **Dado** que abro el dashboard, **cuando** carga, **entonces** veo tarjetas
+   con equipos, eventos, críticos (0 a 3), sospechosos e incidentes abiertos.
+2. **Dado** que hay eventos, **cuando** veo el resumen, **entonces** un gráfico
+   muestra la cantidad por cada nivel de severidad, del 0 al 7.
+3. **Dado** que un equipo activo tiene eventos críticos en las últimas 24 horas,
+   **cuando** veo el semáforo, **entonces** aparece en rojo; si está en
+   mantenimiento, aparece en gris.
+4. **Dado** que el dashboard está abierto, **cuando** pasan 15 segundos,
+   **entonces** los datos se actualizan solos.
+5. **Dado** que abro el dashboard en un celular, **cuando** carga, **entonces**
+   el contenido se reorganiza en una sola columna.
+
+**Pruebas:** PF-F4-10, PF-F4-12, PF-F4-13, PF-F4-19
+
+### HU-12 — Filtrar eventos desde la interfaz
+
+**Como** operador NOC, **quiero** filtrar los eventos con controles visuales,
+**para** encontrar lo que busco sin escribir consultas.
+
+**Criterios de aceptación**
+
+1. **Dado** que elijo fecha, marca, equipo, severidad o "solo sospechosos",
+   **cuando** presiono Filtrar, **entonces** la tabla muestra solo los eventos
+   que cumplen todos los filtros.
+2. **Dado** que la API guarda las fechas en UTC, **cuando** se muestran,
+   **entonces** aparecen en la hora local del operador.
+3. **Dado** que un mensaje contiene código HTML o JavaScript, **cuando** se
+   muestra, **entonces** aparece como texto y nunca se ejecuta.
+
+**Pruebas:** PF-F4-14, PF-F4-18
+
+---
+
+## Módulo 4: Gestión de incidentes (Fase 4)
+
+### HU-13 — Crear incidentes
+
+**Como** operador NOC, **quiero** crear un incidente desde un evento o de forma
+manual, **para** registrar los problemas que alguien debe atender.
+
+**Criterios de aceptación**
+
+1. **Dado** un evento, **cuando** presiono "Crear incidente", **entonces** se crea
+   un incidente abierto con título, severidad y equipo tomados del evento.
+2. **Dado** que el evento ya tiene un incidente sin cerrar, **cuando** intento
+   crear otro, **entonces** se rechaza con el código 409.
+3. **Dado** que creo un incidente manual con responsable, **cuando** se guarda,
+   **entonces** nace en estado "asignado".
+
+**Pruebas:** PF-F4-01, PF-F4-02, PF-F4-09, PF-F4-15
+
+### HU-14 — Asignar y dar seguimiento
+
+**Como** operador NOC, **quiero** asignar incidentes y cambiar su estado,
+**para** que siempre se sepa quién atiende cada problema y en qué va.
+
+**Criterios de aceptación**
+
+1. **Dado** un incidente abierto, **cuando** le asigno un responsable,
+   **entonces** pasa automáticamente a "asignado".
+2. **Dado** un incidente abierto, **cuando** intento pasarlo a "en progreso",
+   **entonces** se rechaza con el código 409 y se indican los estados permitidos.
+3. **Dado** un incidente, **cuando** lo veo en el dashboard, **entonces** solo
+   aparecen los botones de las acciones permitidas en su estado.
+
+**Pruebas:** PF-F4-03, PF-F4-04, PF-F4-05, PF-F4-16
+
+### HU-15 — Cerrar incidentes
+
+**Como** operador NOC, **quiero** cerrar los incidentes documentando la solución,
+**para** conservar el conocimiento y medir los tiempos de respuesta.
+
+**Criterios de aceptación**
+
+1. **Dado** un incidente, **cuando** intento cerrarlo sin resolución (mínimo 10
+   caracteres), **entonces** se rechaza.
+2. **Dado** un incidente, **cuando** lo cierro con resolución, **entonces** se
+   registra la fecha de cierre y la acción CLOSE en la auditoría.
+3. **Dado** un incidente cerrado, **cuando** intento modificarlo, **entonces** se
+   rechaza con el código 409.
+
+**Pruebas:** PF-F4-06, PF-F4-07, PF-F4-08, PF-F4-11, PF-F4-16
+
+<!-- FIN FASE 4 -->

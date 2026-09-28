@@ -1,14 +1,17 @@
 """
 Servidor principal del NOC Syslog Inteligente.
-Aquí se "conectan" los módulos (routers) de la aplicación.
+  - /api/...  -> la API (inventario, syslog, eventos, incidentes, dashboard, auditoría)
+  - /docs     -> documentación interactiva de la API
+  - /         -> el dashboard web (carpeta frontend/)
 """
 from fastapi import Depends, FastAPI, Query
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 
 from . import models
-from .config import APP_NAME, APP_VERSION
+from .config import APP_NAME, APP_VERSION, BASE_DIR
 from .database import Base, engine, get_db
-from .routers import devices, syslog
+from .routers import dashboard, devices, incidents, syslog
 
 # Crea las tablas si no existen
 Base.metadata.create_all(bind=engine)
@@ -20,9 +23,11 @@ app = FastAPI(
                 "**Todos los equipos y eventos son SIMULADOS.**",
 )
 
-# Módulos de la aplicación
+# Módulos de la API
+app.include_router(dashboard.router)
 app.include_router(devices.router)
 app.include_router(syslog.router)
+app.include_router(incidents.router)
 
 
 @app.get("/api/health", tags=["Sistema"], summary="Chequeo de salud")
@@ -42,3 +47,7 @@ def ver_auditoria(limite: int = Query(20, ge=1, le=200), db: Session = Depends(g
          "entidad": r.entity_type, "entidad_id": r.entity_id, "detalle": r.details}
         for r in registros
     ]
+
+
+# Dashboard web. Se monta AL FINAL para que no tape las rutas /api y /docs.
+app.mount("/", StaticFiles(directory=BASE_DIR / "frontend", html=True), name="frontend")

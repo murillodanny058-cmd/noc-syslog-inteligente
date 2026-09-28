@@ -1,0 +1,341 @@
+/* =====================================================================
+   NOC Syslog Inteligente — estilos
+   Tema oscuro (como las pantallas de un NOC real) y diseño responsivo.
+   ===================================================================== */
+
+/* ---------- Variables de color ---------- */
+:root {
+  --fondo: #0d1117;
+  --panel: #161b22;
+  --panel-2: #1f2630;
+  --borde: #30363d;
+  --texto: #e6edf3;
+  --tenue: #8b949e;
+  --acento: #2f81f7;
+  --morado: #b981ff;
+  --radio: 10px;
+  /* Un color por nivel de severidad (0 = más grave) */
+  --s0: #ff2d6f;
+  --s1: #ff453a;
+  --s2: #ff7a1a;
+  --s3: #ffb020;
+  --s4: #e3d000;
+  --s5: #4cc2ff;
+  --s6: #3ecf6e;
+  --s7: #8b949e;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: var(--fondo);
+  color: var(--texto);
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+h1 { font-size: 1.15rem; margin: 0; }
+h2 { font-size: 1rem; margin: 0 0 0.75rem; }
+
+/* ---------- Encabezado ---------- */
+.barra-superior {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding: 0.8rem 1.25rem;
+  background: var(--panel);
+  border-bottom: 1px solid var(--borde);
+}
+.marca { display: flex; align-items: center; gap: 0.7rem; }
+.logo { font-size: 1.7rem; }
+.subtitulo { margin: 0; color: var(--tenue); font-size: 0.8rem; }
+.conexion { display: flex; align-items: center; gap: 0.5rem; font-size: 0.8rem; color: var(--tenue); }
+.punto { width: 10px; height: 10px; border-radius: 50%; background: var(--tenue); }
+.punto.ok { background: var(--s6); box-shadow: 0 0 8px var(--s6); }
+.punto.error { background: var(--s1); }
+
+/* ---------- Pestañas ---------- */
+.pestanas {
+  display: flex;
+  gap: 0.25rem;
+  padding: 0 1.25rem;
+  background: var(--panel);
+  border-bottom: 1px solid var(--borde);
+  overflow-x: auto; /* en el celular se deslizan de lado */
+}
+.pestana {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--tenue);
+  padding: 0.75rem 1rem;
+  font-size: 0.95rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.pestana:hover { color: var(--texto); }
+.pestana.activa { color: var(--texto); border-bottom-color: var(--acento); }
+
+/* ---------- Estructura general ---------- */
+main { padding: 1.25rem; max-width: 1400px; margin: 0 auto; }
+.vista { display: none; }
+.vista.activa { display: block; }
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  padding: 1rem;
+  min-width: 0;
+}
+.panel-alerta { border-color: var(--morado); }
+.nota { color: var(--tenue); font-size: 0.8rem; margin: 0 0 0.6rem; }
+.tenue { color: var(--tenue); font-size: 0.78rem; }
+.vacio { color: var(--tenue); text-align: center; padding: 1rem; }
+.acciones { margin-top: 1rem; }
+
+/* ---------- Tarjetas del resumen ---------- */
+.tarjetas {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); /* se acomodan solas */
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+.tarjeta {
+  background: var(--panel);
+  border: 1px solid var(--borde);
+  border-left: 4px solid var(--acento);
+  border-radius: var(--radio);
+  padding: 0.9rem 1rem;
+}
+.tarjeta .titulo { color: var(--tenue); font-size: 0.85rem; }
+.tarjeta .numero { font-size: 2rem; font-weight: 700; }
+.tarjeta .detalle { color: var(--tenue); font-size: 0.78rem; }
+.tarjeta.rojo { border-left-color: var(--s1); }
+.tarjeta.rojo .numero { color: var(--s1); }
+.tarjeta.naranja { border-left-color: var(--s3); }
+.tarjeta.naranja .numero { color: var(--s3); }
+.tarjeta.morado { border-left-color: var(--morado); }
+.tarjeta.morado .numero { color: var(--morado); }
+
+.rejilla { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; }
+
+/* ---------- Colores de severidad ---------- */
+.s0 { background: var(--s0); }
+.s1 { background: var(--s1); }
+.s2 { background: var(--s2); }
+.s3 { background: var(--s3); }
+.s4 { background: var(--s4); }
+.s5 { background: var(--s5); }
+.s6 { background: var(--s6); }
+.s7 { background: var(--s7); }
+
+.sev {
+  display: inline-block;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #0d1117;
+  white-space: nowrap;
+}
+
+/* ---------- Gráfico de barras ---------- */
+.barra-fila {
+  display: grid;
+  grid-template-columns: 140px 1fr 36px;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.45rem;
+}
+.barra-pista { background: var(--panel-2); border-radius: 4px; height: 14px; overflow: hidden; }
+.barra { height: 100%; border-radius: 4px; transition: width 0.4s; }
+.barra-valor { text-align: right; color: var(--tenue); font-size: 0.85rem; }
+
+/* ---------- Semáforo de equipos ---------- */
+.equipo {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.55rem 0;
+  border-bottom: 1px solid var(--borde);
+}
+.equipo:last-child { border-bottom: none; }
+.semaforo { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+.semaforo.verde { background: var(--s6); }
+.semaforo.rojo { background: var(--s1); box-shadow: 0 0 8px var(--s1); }
+.semaforo.gris { background: var(--tenue); }
+.equipo-info { flex: 1; min-width: 0; }
+.equipo-info small { display: block; color: var(--tenue); }
+.equipo-cifras { text-align: right; font-size: 0.78rem; color: var(--tenue); }
+
+/* ---------- Listas de eventos ---------- */
+.lista { max-height: 340px; overflow-y: auto; }
+.item { padding: 0.55rem 0; border-bottom: 1px solid var(--borde); }
+.item-cab { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; font-size: 0.85rem; }
+.item-msg {
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 0.8rem;
+  color: var(--tenue);
+  margin-top: 0.25rem;
+  word-break: break-word;
+}
+.rep { background: var(--panel-2); border-radius: 4px; padding: 0 0.35rem; font-size: 0.75rem; }
+
+/* ---------- Botones ---------- */
+.btn {
+  background: var(--acento);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 0.55rem 1rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+  min-height: 40px; /* fácil de tocar con el dedo */
+}
+  min-height: 40px; /* fácil de tocar con el dedo */
+}
+.btn:hover { filter: brightness(1.15); }
+.btn:disabled { opacity: 0.5; cursor: wait; }
+.btn.secundario { background: var(--panel-2); color: var(--texto); border: 1px solid var(--borde); }
+.btn.peligro { background: transparent; color: var(--s1); border: 1px solid var(--s1); }
+.btn.mini { padding: 0.3rem 0.6rem; font-size: 0.78rem; min-height: 32px; }
+.botones { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+
+/* ---------- Formularios ---------- */
+.formulario {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.75rem;
+  align-items: end;
+  margin-bottom: 1rem;
+}
+.formulario label,
+.barra-filtro label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.8rem;
+  color: var(--tenue);
+}
+.formulario .ancho { grid-column: 1 / -1; }
+.formulario input:not([type="checkbox"]),
+.formulario select,
+.formulario textarea { width: 100%; }
+.formulario .casilla {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--texto);
+  font-size: 0.9rem;
+}
+input, select, textarea {
+  background: var(--fondo);
+  color: var(--texto);
+  border: 1px solid var(--borde);
+  border-radius: 6px;
+  padding: 0.5rem 0.6rem;
+  font: inherit;
+  min-height: 40px;
+}
+input[type="checkbox"] { min-height: auto; width: 18px; height: 18px; }
+input:focus, select:focus, textarea:focus { outline: 2px solid var(--acento); border-color: transparent; }
+input[type="datetime-local"] { color-scheme: dark; }
+details.panel { margin-bottom: 1rem; }
+details.panel summary { cursor: pointer; font-weight: 600; }
+details[open] summary { margin-bottom: 1rem; }
+.barra-filtro { margin-bottom: 1rem; max-width: 240px; }
+
+/* ---------- Tablas ---------- */
+.tabla-contenedor { overflow-x: auto; border: 1px solid var(--borde); border-radius: var(--radio); }
+.tabla { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 760px; }
+.tabla th {
+  text-align: left;
+  background: var(--panel-2);
+  color: var(--tenue);
+  font-weight: 600;
+  padding: 0.6rem;
+  white-space: nowrap;
+}
+.tabla td { padding: 0.55rem 0.6rem; border-top: 1px solid var(--borde); vertical-align: top; }
+.tabla tr:hover td { background: var(--panel); }
+.tabla .msg { font-family: ui-monospace, Consolas, monospace; font-size: 0.78rem; max-width: 420px; word-break: break-word; }
+.tabla tr.sospechoso td { background: rgba(185, 129, 255, 0.08); }
+.etiqueta-ia { color: var(--morado); font-weight: 700; font-size: 0.72rem; }
+.estado-equipo { font-size: 0.78rem; font-weight: 600; }
+.estado-equipo.activo { color: var(--s6); }
+.estado-equipo.mantenimiento { color: var(--s3); }
+.estado-equipo.inactivo, .estado-equipo.desconocido { color: var(--tenue); }
+/* --- FIN DEL BLOQUE A --- */
+/* ---------- Incidentes ---------- */
+.incidentes {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr));
+  gap: 1rem;
+}
+.incidente {
+  background: var(--panel);
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.incidente h3 { margin: 0; font-size: 0.95rem; word-break: break-word; }
+.incidente .meta { margin: 0; font-size: 0.78rem; color: var(--tenue); }
+.incidente .resolucion { font-size: 0.82rem; background: var(--panel-2); padding: 0.5rem; border-radius: 6px; }
+.estado {
+  display: inline-block;
+  padding: 0.1rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.estado.abierto { background: rgba(255, 69, 58, 0.18); color: var(--s1); }
+.estado.asignado { background: rgba(255, 176, 32, 0.18); color: var(--s3); }
+.estado.en_progreso { background: rgba(47, 129, 247, 0.2); color: var(--acento); }
+.estado.cerrado { background: rgba(62, 207, 110, 0.15); color: var(--s6); }
+
+/* ---------- Mensajes emergentes ---------- */
+.avisos {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  left: 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.5rem;
+  z-index: 50;
+  pointer-events: none;
+}
+.aviso {
+  background: var(--panel-2);
+  border-left: 4px solid var(--s6);
+  padding: 0.7rem 1rem;
+  border-radius: 8px;
+  max-width: 420px;
+  font-size: 0.88rem;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+  pointer-events: auto;
+}
+.aviso.error { border-left-color: var(--s1); }
+
+.pie { text-align: center; color: var(--tenue); font-size: 0.75rem; padding: 2rem 1rem; }
+
+/* ---------- Responsivo: tablets y celulares ---------- */
+@media (max-width: 800px) {
+  main { padding: 0.75rem; }
+  .rejilla { grid-template-columns: 1fr; }
+  .barra-fila { grid-template-columns: 115px 1fr 30px; }
+  .tarjeta .numero { font-size: 1.6rem; }
+  .barra-superior { padding: 0.7rem 0.9rem; }
+  .pestanas { padding: 0 0.5rem; }
+}
+/* --- FIN DEL ARCHIVO --- */

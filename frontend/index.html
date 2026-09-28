@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- Esta línea hace que la página se adapte al ancho del celular -->
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>NOC Syslog Inteligente</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <!-- ================= ENCABEZADO ================= -->
+    <header class="barra-superior">
+      <div class="marca">
+        <span class="logo" aria-hidden="true">📡</span>
+        <div>
+          <h1>NOC Syslog Inteligente</h1>
+          <p class="subtitulo">v0.2.0 · Datos <strong>SIMULADOS</strong></p>
+        </div>
+      </div>
+      <div class="conexion">
+        <span id="indicador" class="punto"></span>
+        <span id="actualizado">Conectando…</span>
+      </div>
+    </header>
+
+    <!-- ================= PESTAÑAS ================= -->
+    <nav class="pestanas">
+      <button class="pestana activa" data-vista="resumen">Resumen</button>
+      <button class="pestana" data-vista="eventos">Eventos</button>
+      <button class="pestana" data-vista="incidentes">Incidentes</button>
+      <button class="pestana" data-vista="inventario">Inventario</button>
+    </nav>
+
+    <main>
+      <!-- ================= VISTA 1: RESUMEN ================= -->
+      <section id="vista-resumen" class="vista activa">
+        <div id="tarjetas" class="tarjetas"></div>
+        <div class="rejilla">
+          <article class="panel">
+            <h2>Eventos por severidad</h2>
+            <div id="grafico-severidad"></div>
+          </article>
+          <article class="panel">
+            <h2>Estado de los equipos (últimas 24 h)</h2>
+            <div id="lista-equipos"></div>
+          </article>
+          <article class="panel">
+            <h2>Eventos críticos recientes (0 a 3)</h2>
+            <div id="lista-criticos" class="lista"></div>
+          </article>
+          <article class="panel panel-alerta">
+            <h2>⚠ Posibles inyecciones dirigidas a IA</h2>
+            <p class="nota">
+              Se guardan solo como datos. El sistema nunca los ejecuta.
+            </p>
+            <div id="lista-sospechosos" class="lista"></div>
+          </article>
+        </div>
+        <div class="acciones">
+          <button id="btn-simular" class="btn">
+            Simular tráfico (30 mensajes)
+          </button>
+        </div>
+      </section>
+
+      <!-- ================= VISTA 2: EVENTOS ================= -->
+      <section id="vista-eventos" class="vista">
+        <form id="filtros-eventos" class="formulario panel">
+          <label>Desde<input type="datetime-local" name="desde" /></label>
+          <label>Hasta<input type="datetime-local" name="hasta" /></label>
+          <label
+            >Marca
+            <select name="vendor">
+              <option value="">Todas</option>
+              <option>Cisco</option>
+              <option>Fortinet</option>
+              <option>Huawei</option>
+              <option>Otro</option>
+            </select>
+          </label>
+          <label
+            >Equipo
+            <select name="device_id" class="select-equipos">
+              <option value="">Todos</option>
+            </select>
+          </label>
+          <label
+            >Severidad máxima
+            <select name="severidad_max" class="select-severidad">
+              <option value="">Todas</option>
+            </select>
+          </label>
+          <label class="casilla"
+            ><input type="checkbox" name="solo_sospechosos" /> Solo
+            sospechosos</label
+          >
+          <div class="botones">
+            <button type="submit" class="btn">Filtrar</button>
+            <button type="reset" class="btn secundario">Limpiar</button>
+          </div>
+        </form>
+        <p id="conteo-eventos" class="nota"></p>
+        <div class="tabla-contenedor">
+          <table class="tabla">
+            <thead>
+              <tr>
+                <th>Recibido</th>
+                <th>Severidad</th>
+                <th>Equipo</th>
+                <th>Marca</th>
+                <th>Aplicación</th>
+                <th>Mensaje</th>
+                <th>Rep.</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="tabla-eventos"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ================= VISTA 3: INCIDENTES ================= -->
+      <section id="vista-incidentes" class="vista">
+        <details class="panel">
+          <summary>+ Nuevo incidente manual</summary>
+          <form id="form-incidente" class="formulario">
+            <label class="ancho"
+              >Título<input name="title" required minlength="3" maxlength="200"
+            /></label>
+            <label
+              >Severidad<select
+                name="severity"
+                class="select-severidad"
+                required
+              ></select
+            ></label>
+            <label
+              >Equipo
+              <select name="device_id" class="select-equipos">
+                <option value="">Ninguno</option>
+              </select>
+            </label>
+            <label
+              >Responsable<input
+                name="assigned_to"
+                maxlength="100"
+                placeholder="Opcional"
+            /></label>
+            <label class="ancho"
+              >Descripción<textarea
+                name="description"
+                rows="2"
+                maxlength="2000"
+              ></textarea>
+            </label>
+            <div class="botones">
+              <button type="submit" class="btn">Crear incidente</button>
+            </div>
+          </form>
+        </details>
+        <div class="barra-filtro">
+          <label
+            >Estado
+            <select id="filtro-estado">
+              <option value="">Todos</option>
+              <option value="abierto">Abierto</option>
+              <option value="asignado">Asignado</option>
+              <option value="en_progreso">En progreso</option>
+              <option value="cerrado">Cerrado</option>
+            </select>
+          </label>
+        </div>
+        <div id="lista-incidentes" class="incidentes"></div>
+      </section>
+
+      <!-- ================= VISTA 4: INVENTARIO ================= -->
+      <section id="vista-inventario" class="vista">
+        <form id="form-equipo" class="formulario panel">
+          <h2 id="titulo-form-equipo" class="ancho">Agregar equipo</h2>
+          <input type="hidden" name="id" />
+          <label
+            >Nombre<input
+              name="name"
+              required
+              maxlength="100"
+              placeholder="SIM-DIST-SW03"
+          /></label>
+          <label
+            >IP<input name="ip_address" required placeholder="192.0.2.50"
+          /></label>
+          <label
+            >Marca
+            <select name="vendor">
+              <option>Cisco</option>
+              <option>Fortinet</option>
+              <option>Huawei</option>
+              <option>Otro</option>
+            </select>
+          </label>
+          <label>Modelo<input name="model" maxlength="60" /></label>
+          <label>Versión<input name="os_version" maxlength="60" /></label>
+          <label>Ubicación<input name="location" maxlength="120" /></label>
+          <label
+            >Estado
+            <select name="status">
+              <option>activo</option>
+              <option>inactivo</option>
+              <option>mantenimiento</option>
+              <option>desconocido</option>
+            </select>
+          </label>
+          <p class="nota ancho">
+            Equipos simulados: use IP de documentación (192.0.2.x, 198.51.100.x
+            o 203.0.113.x).
+          </p>
+          <div class="botones">
+            <button type="submit" class="btn">Guardar</button>
+            <button
+              type="button"
+              id="btn-cancelar-equipo"
+              class="btn secundario"
+            >
+              Cancelar
+            </button>
+          </div>
+        </form>
+        <div class="tabla-contenedor">
+          <table class="tabla">
+            <thead>
+              <tr>
+                <th>Nombre</th>
+                <th>IP</th>
+                <th>Marca</th>
+                <th>Modelo</th>
+                <th>Versión</th>
+                <th>Ubicación</th>
+                <th>Estado</th>
+                <th>Actualizado</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="tabla-equipos"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <footer class="pie">
+      NOC Syslog Inteligente · Proyecto académico 2026-2 · Los logs se tratan
+      como datos no confiables
+    </footer>
+
+    <!-- Contenedor de mensajes emergentes -->
+    <div id="avisos" class="avisos" aria-live="polite"></div>
+
+    <script src="app.js"></script>
+  </body>
+</html>

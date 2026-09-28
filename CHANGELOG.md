@@ -4,6 +4,19 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/).
 
 ## [0.2.0] - En desarrollo
 
+### Fase 4 — Dashboard, filtros e incidentes
+
+- Gestión de incidentes (`/api/incidents`): creación manual y desde eventos, asignación, seguimiento y cierre.
+- Máquina de estados: abierto → asignado → en_progreso → cerrado, con reglas de transición.
+- Resolución obligatoria para cerrar, incidentes cerrados inmutables y prevención de duplicados.
+- Endpoint de resumen para el dashboard (`/api/dashboard/resumen`).
+- Dashboard web responsivo (HTML, CSS y JavaScript sin frameworks) con 4 vistas.
+- Filtros por fecha, marca, equipo, severidad y sospechosos.
+- Semáforo de equipos con ventana de mantenimiento.
+- Protección contra XSS: todo texto proveniente de los logs se escapa antes de mostrarse.
+- Indicador de conexión y actualización automática cada 15 segundos.
+- Documentación: historias HU-11 a HU-15, pruebas de la Fase 4 y ciclo de vida de incidentes.
+
 ### Fase 3 — Recepción y clasificación Syslog
 
 - Parser multimarca: RFC 3164, RFC 5424, Cisco IOS, Huawei VRP y Fortinet FortiOS.

@@ -107,3 +107,46 @@ flowchart LR
 | 6. Ejecución autorizada | Consola simulada de solo lectura           | ⏳ Fase 5          |
 | 7. Verificación         | Notas de verificación en la propuesta      | ⏳ Fases 4 a 6     |
 | 8. Auditoría            | Tabla `audit_log`                          | ✅ Desde la Fase 2 |
+
+## 4. Ciclo de vida de un incidente
+
+```mermaid
+stateDiagram-v2
+    [*] --> abierto : creado sin responsable
+    [*] --> asignado : creado con responsable
+    abierto --> asignado : asignar responsable
+    abierto --> cerrado : cerrar con resolución
+    asignado --> en_progreso : iniciar trabajo
+    asignado --> cerrado : cerrar con resolución
+    en_progreso --> cerrado : cerrar con resolución
+    cerrado --> [*]
+```
+
+| Regla                                                 | Razón                                       |
+| ----------------------------------------------------- | ------------------------------------------- |
+| No se pueden saltar estados                           | Primero alguien debe hacerse responsable.   |
+| Cerrar exige una resolución de al menos 10 caracteres | Conservar el conocimiento de qué se hizo.   |
+| Un incidente cerrado no se modifica ni se elimina     | La historia no se reescribe (trazabilidad). |
+| Un evento no puede tener dos incidentes sin cerrar    | Evita trabajo duplicado entre operadores.   |
+
+## 5. Interfaz web
+
+El dashboard lo sirve el mismo servidor FastAPI en `http://127.0.0.1:8000/`.
+Está hecho con HTML, CSS y JavaScript sin frameworks.
+
+| Archivo               | Función                                                                                 |
+| --------------------- | --------------------------------------------------------------------------------------- |
+| `frontend/index.html` | Estructura de las 4 vistas: resumen, eventos, incidentes e inventario.                  |
+| `frontend/styles.css` | Tema oscuro tipo NOC y diseño responsivo (una columna en pantallas de menos de 800 px). |
+| `frontend/app.js`     | Consulta la API, dibuja los datos y maneja los botones y formularios.                   |
+
+### Seguridad en el navegador
+
+| Medida                                                | Qué evita                                                |
+| ----------------------------------------------------- | -------------------------------------------------------- |
+| Función `esc()` en todo texto que viene de la API     | Que un log con HTML o JavaScript se ejecute (XSS).       |
+| `textContent` y `new Option()` para mensajes y listas | Que el navegador interprete texto como código.           |
+| Mismo origen para la página y la API                  | No se necesita abrir CORS a otros sitios.                |
+| Validación en el servidor, no solo en el formulario   | Que alguien salte las reglas usando la API directamente. |
+
+<!-- FIN ARQUITECTURA FASE 4 -->
