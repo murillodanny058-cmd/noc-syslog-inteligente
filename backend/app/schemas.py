@@ -195,3 +195,65 @@ class IncidentOut(BaseModel):
     @property
     def severity_name(self) -> str:
         return SEVERIDADES.get(self.severity, "?")
+
+    
+
+# ===========================================================================
+# FASE 5: Generador de configuraciones y consola simulada
+# ===========================================================================
+VendorConfig = Literal["Cisco", "Fortinet", "Huawei"]
+FacilityLocal = Literal["local0", "local1", "local2", "local3",
+                        "local4", "local5", "local6", "local7"]
+
+# Formatos estrictos: impiden "colar" comandos extra en la configuración
+PATRON_INTERFAZ = r"^[A-Za-z][A-Za-z0-9/.:-]{1,40}$"  # ej. Loopback0, GigabitEthernet0/1, port1
+PATRON_ZONA = r"^[A-Z]{2,5}$"                          # ej. COT, UTC
+
+
+class ConfigRequest(BaseModel):
+    """Parámetros para generar una configuración Syslog."""
+    vendor: VendorConfig = Field(..., examples=["Cisco"])
+    nombre_equipo: Optional[str] = Field(None, min_length=2, max_length=60,
+                                         pattern=PATRON_NOMBRE, examples=["SIM-CORE-SW01"])
+    servidor_ip: str = Field(..., examples=["192.0.2.100"])
+    puerto: int = Field(514, ge=1, le=65535)
+    protocolo: Literal["udp", "tcp"] = "udp"
+    severidad_minima: int = Field(6, ge=0, le=7,
+                                  description="Se envían los mensajes desde 0 hasta este nivel")
+    facility: FacilityLocal = "local7"
+    interfaz_origen: Optional[str] = Field(None, pattern=PATRON_INTERFAZ, examples=["Loopback0"])
+    ntp_servidor: Optional[str] = Field(None, examples=["192.0.2.123"])
+    zona_horaria: str = Field("COT", pattern=PATRON_ZONA)
+    desfase_horas: int = Field(-5, ge=-12, le=14)
+
+    @field_validator("servidor_ip", "ntp_servidor")
+    @classmethod
+    def _ips_validas(cls, v):
+        return validar_ip(v)
+
+
+class ConfigResult(BaseModel):
+    """Configuración generada, con advertencias y comandos de verificación."""
+    vendor: str
+    configuracion: str
+    advertencias: list[str]
+    verificacion: list[str]
+
+
+class ConsoleRequest(BaseModel):
+    """Un comando para la consola simulada."""
+    device_id: int = Field(..., examples=[1])
+    comando: str = Field(..., min_length=1, max_length=200, examples=["show logging"])
+    actor: Literal["operador", "agente_ia"] = "operador"
+
+
+class ConsoleResult(BaseModel):
+    """Respuesta de la consola simulada."""
+    prompt: str
+    comando: str
+    categoria: Literal["permitido", "bloqueado", "no_permitido", "invalido"]
+    permitido: bool
+    salida: str
+    motivo: Optional[str] = None
+
+# --- FIN DEL BLOQUE FASE 5 ---

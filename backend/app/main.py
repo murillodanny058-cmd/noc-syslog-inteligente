@@ -1,6 +1,7 @@
 """
 Servidor principal del NOC Syslog Inteligente.
-  - /api/...  -> la API (inventario, syslog, eventos, incidentes, dashboard, auditoría)
+  - /api/...  -> la API (inventario, syslog, eventos, incidentes, dashboard,
+                 herramientas y auditoría)
   - /docs     -> documentación interactiva de la API
   - /         -> el dashboard web (carpeta frontend/)
 """
@@ -11,7 +12,7 @@ from sqlalchemy.orm import Session
 from . import models
 from .config import APP_NAME, APP_VERSION, BASE_DIR
 from .database import Base, engine, get_db
-from .routers import dashboard, devices, incidents, syslog
+from .routers import dashboard, devices, herramientas, incidents, syslog
 
 # Crea las tablas si no existen
 Base.metadata.create_all(bind=engine)
@@ -28,6 +29,7 @@ app.include_router(dashboard.router)
 app.include_router(devices.router)
 app.include_router(syslog.router)
 app.include_router(incidents.router)
+app.include_router(herramientas.router)
 
 
 @app.get("/api/health", tags=["Sistema"], summary="Chequeo de salud")
@@ -51,3 +53,5 @@ def ver_auditoria(limite: int = Query(20, ge=1, le=200), db: Session = Depends(g
 
 # Dashboard web. Se monta AL FINAL para que no tape las rutas /api y /docs.
 app.mount("/", StaticFiles(directory=BASE_DIR / "frontend", html=True), name="frontend")
+
+# --- FIN DEL ARCHIVO ---
