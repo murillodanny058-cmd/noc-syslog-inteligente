@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from . import models
 from .config import APP_NAME, APP_VERSION, BASE_DIR
-from .database import Base, engine, get_db
+from .database import MOTOR, Base, engine, get_db
 from .routers import dashboard, devices, herramientas, incidents, politica, syslog
 
 # Crea las tablas si no existen
@@ -36,7 +36,7 @@ app.include_router(politica.router)
 @app.get("/api/health", tags=["Sistema"], summary="Chequeo de salud")
 def health():
     """Si responde, el servidor y la BD están bien."""
-    return {"status": "ok", "app": APP_NAME, "version": APP_VERSION}
+    return {"status": "ok", "app": APP_NAME, "version": APP_VERSION, "base_datos": MOTOR}
 
 
 @app.get("/api/audit", tags=["Auditoría"], summary="Ver registro de auditoría (solo lectura)")

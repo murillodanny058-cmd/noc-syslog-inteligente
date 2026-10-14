@@ -6,3 +6,4 @@ uvicorn[standard]>=0.29
 SQLAlchemy>=2.0
 # Lee variables del archivo .env
 python-dotenv>=1.0
+psycopg[binary]>=3.2
