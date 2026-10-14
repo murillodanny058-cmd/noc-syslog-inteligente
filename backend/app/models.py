@@ -153,4 +153,35 @@ class AuditLog(Base):
     entity_type = Column(String(50))                 # sobre qué tabla
     entity_id = Column(Integer)
     details = Column(Text)
+
     
+
+# ---------------------------------------------------------------------------
+# 6. USUARIOS Y SESIONES (Fase 7)
+# ---------------------------------------------------------------------------
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String(50), unique=True, nullable=False)
+    full_name = Column(String(100), nullable=False)
+    password_hash = Column(String(300), nullable=False)   # NUNCA la contraseña en texto
+    role = Column(String(20), nullable=False, default="operador")
+    active = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime, default=ahora_utc, nullable=False)
+
+    __table_args__ = (
+        CheckConstraint("role IN ('operador','aprobador','administrador')", name="ck_user_role"),
+    )
+
+
+class UserSession(Base):
+    __tablename__ = "user_sessions"
+
+    id = Column(Integer, primary_key=True)
+    token_hash = Column(String(64), unique=True, nullable=False, index=True)  # solo el hash del token
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    created_at = Column(DateTime, default=ahora_utc, nullable=False)
+    expires_at = Column(DateTime, nullable=False)
+
+# --- FIN BLOQUE FASE 7 ---

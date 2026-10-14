@@ -304,3 +304,43 @@ class ProposalOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 # --- FIN DEL BLOQUE FASE 6 ---
+
+
+# ===========================================================================
+# FASE 7: Usuarios, roles y sesiones
+# ===========================================================================
+Rol = Literal["operador", "aprobador", "administrador"]
+PATRON_USUARIO = r"^[a-z0-9._-]{3,50}$"   # minúsculas, números, punto, guion
+
+
+class LoginIn(BaseModel):
+    username: str = Field(..., min_length=3, max_length=50, examples=["admin"])
+    password: str = Field(..., min_length=1, max_length=200)
+
+
+class UserCreate(BaseModel):
+    username: str = Field(..., pattern=PATRON_USUARIO, examples=["operador1"])
+    full_name: str = Field(..., min_length=3, max_length=100, pattern=PATRON_PERSONA,
+                           examples=["Operador de turno"])
+    role: Rol = "operador"
+    password: str = Field(..., min_length=10, max_length=200)
+
+
+class UserUpdate(BaseModel):
+    full_name: Optional[str] = Field(None, min_length=3, max_length=100, pattern=PATRON_PERSONA)
+    role: Optional[Rol] = None
+    active: Optional[bool] = None
+    password: Optional[str] = Field(None, min_length=10, max_length=200)
+
+
+class UserOut(BaseModel):
+    id: int
+    username: str
+    full_name: str
+    role: str
+    active: bool
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+# --- FIN BLOQUE FASE 7 ---

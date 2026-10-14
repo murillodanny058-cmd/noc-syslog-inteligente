@@ -59,13 +59,21 @@ function fecha(iso) {
 
 /** Llama a la API y devuelve el JSON. Si hay error, lanza el mensaje del servidor. */
 async function api(ruta, opciones = {}) {
-  const respuesta = await fetch("/api" + ruta, {
-    ...opciones,
-    headers: {
-      "Content-Type": "application/json",
-      ...(opciones.headers || {}),
-    },
-  });
+  let respuesta;
+  try {
+    respuesta = await fetch("/api" + ruta, {
+      ...opciones,
+      headers: { "Content-Type": "application/json", ...(opciones.headers || {}) },
+    });
+  } catch (error) {
+    marcarConexion(false); // el servidor no respondió
+    throw new Error("No hay conexión con el servidor");
+  }
+  marcarConexion(true);
+  if (respuesta.status === 401) { // sin sesión: ir al login
+    location.href = "/login.html";
+    throw new Error("Debe iniciar sesión");
+  }
   if (respuesta.status === 204) return null;
   const datos = await respuesta.json().catch(() => ({}));
   if (!respuesta.ok) {

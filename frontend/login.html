@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Iniciar sesión · NOC Syslog Inteligente</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body class="pagina-login">
+    <main class="caja-login panel">
+      <div class="marca">
+        <span class="logo" aria-hidden="true">📡</span>
+        <div>
+          <h1>NOC Syslog Inteligente</h1>
+          <p class="subtitulo">v1.0.0 · Acceso restringido</p>
+        </div>
+      </div>
+      <form id="form-login" class="formulario-login">
+        <label
+          >Usuario<input
+            name="username"
+            autocomplete="username"
+            required
+            maxlength="50"
+        /></label>
+        <label
+          >Contraseña<input
+            name="password"
+            type="password"
+            autocomplete="current-password"
+            required
+            maxlength="200"
+        /></label>
+        <button type="submit" class="btn">Ingresar</button>
+        <p id="error-login" class="error-login" hidden></p>
+      </form>
+      <p class="nota">
+        Cada intento queda en la auditoría. Tras 5 intentos fallidos, el usuario
+        se bloquea por 10 minutos.
+      </p>
+    </main>
+    <script>
+      document
+        .getElementById("form-login")
+        .addEventListener("submit", async (evento) => {
+          evento.preventDefault();
+          const f = new FormData(evento.target);
+          const error = document.getElementById("error-login");
+          error.hidden = true;
+          try {
+            const r = await fetch("/api/auth/login", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                username: String(f.get("username")).trim(),
+                password: f.get("password"),
+              }),
+            });
+            if (r.ok) {
+              location.href = "/";
+              return;
+            }
+            const datos = await r.json().catch(() => ({}));
+            error.textContent =
+              typeof datos.detail === "string"
+                ? datos.detail
+                : "Datos inválidos";
+            error.hidden = false;
+          } catch {
+            error.textContent = "No hay conexión con el servidor";
+            error.hidden = false;
+          }
+        });
+    </script>
+  </body>
+</html>
+<!-- FIN DEL ARCHIVO -->

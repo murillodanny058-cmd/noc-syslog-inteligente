@@ -1,9 +1,9 @@
 """
 Servidor principal del NOC Syslog Inteligente.
-  - /api/...  -> la API (inventario, syslog, eventos, incidentes, dashboard,
-                 herramientas, política de IA y auditoría)
-  - /docs     -> documentación interactiva de la API
-  - /         -> el dashboard web (carpeta frontend/)
+  - /api/...      -> la API. Todo exige sesión, excepto /api/health y el login.
+  - /docs         -> documentación interactiva (inicie sesión primero en el dashboard)
+  - /login.html   -> página de inicio de sesión
+  - /             -> el dashboard web
 """
 from fastapi import Depends, FastAPI, Query
 from fastapi.staticfiles import StaticFiles
@@ -12,34 +12,43 @@ from sqlalchemy.orm import Session
 from . import models
 from .config import APP_NAME, APP_VERSION, BASE_DIR
 from .database import MOTOR, Base, engine, get_db
-from .routers import dashboard, devices, herramientas, incidents, politica, syslog
+from .routers import auth, dashboard, devices, herramientas, incidents, politica, syslog, usuarios
+from .seguridad import autorizar
 
-# Crea las tablas si no existen
+# Crea las tablas que falten (incluye las nuevas: users y user_sessions)
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
     title=APP_NAME,
     version=APP_VERSION,
     description="NOC basado en Syslog con defensa frente a acciones de agentes de IA. "
-                "**Todos los equipos y eventos son SIMULADOS.**",
+                "Para usar esta página, inicie sesión primero en el dashboard.",
 )
 
-# Módulos de la API
-app.include_router(dashboard.router)
-app.include_router(devices.router)
-app.include_router(syslog.router)
-app.include_router(incidents.router)
-app.include_router(herramientas.router)
-app.include_router(politica.router)
+# Todas las rutas protegidas pasan por 'autorizar' (sesión + permiso del rol)
+PROTEGIDO = [Depends(autorizar)]
+
+# Códigos de respuesta documentados en /docs (corrige los "Undocumented" del Corte 2)
+RESPUESTAS = {
+    401: {"description": "No ha iniciado sesión"},
+    403: {"description": "Su rol no tiene permiso para esta acción"},
+    404: {"description": "El recurso no existe"},
+    409: {"description": "Conflicto con el estado actual (duplicado o estado no permitido)"},
+}
+
+app.include_router(auth.router, responses=RESPUESTAS)
+for modulo in (dashboard, devices, syslog, incidents, herramientas, politica, usuarios):
+    app.include_router(modulo.router, dependencies=PROTEGIDO, responses=RESPUESTAS)
 
 
-@app.get("/api/health", tags=["Sistema"], summary="Chequeo de salud")
+@app.get("/api/health", tags=["Sistema"], summary="Chequeo de salud (público)")
 def health():
     """Si responde, el servidor y la BD están bien."""
     return {"status": "ok", "app": APP_NAME, "version": APP_VERSION, "base_datos": MOTOR}
 
 
-@app.get("/api/audit", tags=["Auditoría"], summary="Ver registro de auditoría (solo lectura)")
+@app.get("/api/audit", tags=["Auditoría"], summary="Ver registro de auditoría (aprobador o administrador)",
+         dependencies=PROTEGIDO, responses=RESPUESTAS)
 def ver_auditoria(limite: int = Query(20, ge=1, le=200), db: Session = Depends(get_db)):
     """Últimos registros de auditoría, del más reciente al más antiguo."""
     registros = (db.query(models.AuditLog)
