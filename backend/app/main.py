@@ -12,10 +12,10 @@ from sqlalchemy.orm import Session
 from . import models
 from .config import APP_NAME, APP_VERSION, BASE_DIR
 from .database import MOTOR, Base, engine, get_db
-from .routers import auth, dashboard, devices, herramientas, incidents, politica, syslog, usuarios
+from .routers import alertas, auth, dashboard, devices, herramientas, incidents, politica, syslog, usuarios
 from .seguridad import autorizar
 
-# Crea las tablas que falten (incluye las nuevas: users y user_sessions)
+# Crea las tablas que falten (incluye users, user_sessions y notifications)
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
@@ -28,7 +28,7 @@ app = FastAPI(
 # Todas las rutas protegidas pasan por 'autorizar' (sesión + permiso del rol)
 PROTEGIDO = [Depends(autorizar)]
 
-# Códigos de respuesta documentados en /docs (corrige los "Undocumented" del Corte 2)
+# Códigos de respuesta documentados en /docs
 RESPUESTAS = {
     401: {"description": "No ha iniciado sesión"},
     403: {"description": "Su rol no tiene permiso para esta acción"},
@@ -37,7 +37,7 @@ RESPUESTAS = {
 }
 
 app.include_router(auth.router, responses=RESPUESTAS)
-for modulo in (dashboard, devices, syslog, incidents, herramientas, politica, usuarios):
+for modulo in (dashboard, devices, syslog, incidents, herramientas, politica, usuarios, alertas):
     app.include_router(modulo.router, dependencies=PROTEGIDO, responses=RESPUESTAS)
 
 

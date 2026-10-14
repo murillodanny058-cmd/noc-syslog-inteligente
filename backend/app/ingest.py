@@ -8,6 +8,7 @@ Flujo seguro (en este orden):
   4. Deduplicar   -> si el mismo mensaje llegó hace poco, solo se suma al contador.
   5. Tormentas    -> se limita la cantidad de mensajes NUEVOS por origen por minuto.
   6. Guardar      -> se crea el evento (y una alerta de auditoría si es sospechoso).
+  7. Avisar       -> se encola una notificación (Fase 8), sin frenar la ingesta.
 """
 import hashlib
 import re
@@ -17,6 +18,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from .models import AuditLog, Device, SyslogEvent
+from .notificaciones import SEV_MAX_GLOBAL, encolar
 from .syslog_parser import SEVERIDADES, limpiar, parsear
 
 VENTANA_DEDUP = timedelta(seconds=60)  # mismo mensaje dentro de 60 s = duplicado
@@ -25,7 +27,6 @@ LIMITE_POR_MINUTO = 120                # eventos NUEVOS por IP de origen por min
 VENDOR_POR_FORMATO = {"Cisco IOS": "Cisco", "Huawei VRP": "Huawei", "Fortinet FortiOS": "Fortinet"}
 
 # Textos típicos de "inyección de instrucciones" (prompt injection) y comandos destructivos.
-# Si un log contiene algo así, alguien podría estar intentando manipular a un agente de IA.
 PATRONES_SOSPECHOSOS = [re.compile(p, re.IGNORECASE) for p in (
     r"ignor(a|e|ar)\s+(las\s+|tus\s+|all\s+|previous\s+|the\s+)*(instrucciones|instructions)",
     r"olvida\s+(tus|las)\s+(instrucciones|reglas)",
@@ -46,7 +47,7 @@ def es_sospechoso(texto: str) -> bool:
 
 
 def huella(origen: str, severidad: int, mensaje: str) -> str:
-    """Huella digital (SHA-256) del mensaje: mismo origen + severidad + texto = misma huella."""
+    """Huella digital (SHA-256): mismo origen + severidad + texto = misma huella."""
     return hashlib.sha256(f"{origen}|{severidad}|{mensaje}".encode("utf-8")).hexdigest()
 
 
@@ -54,6 +55,21 @@ def _resumen(resultado: str, evento: SyslogEvent) -> dict:
     return {"resultado": resultado, "event_id": evento.id, "severity": evento.severity,
             "severity_name": SEVERIDADES[evento.severity], "facility": evento.facility,
             "repeat_count": evento.repeat_count, "sospechoso": evento.flagged_suspicious}
+
+
+def _avisar(evento: SyslogEvent):
+    """Encola la notificación de un evento nuevo (los filtros se aplican en notificaciones.py)."""
+    origen = evento.hostname or evento.source_ip
+    if evento.flagged_suspicious:
+        encolar({"clave": f"sospechoso:{evento.source_ip}", "tipo": "sospechoso",
+                 "severidad": evento.severity, "siempre": True, "device_id": evento.device_id,
+                 "titulo": f"Posible inyección para IA desde {origen}",
+                 "detalle": f"Mensaje guardado como dato y NO ejecutado: {evento.message}"})
+    elif evento.severity <= SEV_MAX_GLOBAL:
+        encolar({"clave": evento.fingerprint, "tipo": "evento", "severidad": evento.severity,
+                 "siempre": False, "device_id": evento.device_id,
+                 "titulo": f"{origen} ({evento.vendor or 'sin marca'})",
+                 "detalle": f"{evento.app_name or '-'}: {evento.message}"})
 
 
 def ingerir(db: Session, raw: str, source_ip: str, source_type: str = "simulado") -> dict:
@@ -88,6 +104,11 @@ def ingerir(db: Session, raw: str, source_ip: str, source_type: str = "simulado"
                          SyslogEvent.received_at >= ahora - timedelta(minutes=1))
                  .scalar())
     if recientes >= LIMITE_POR_MINUTO:
+        encolar({"clave": f"tormenta:{source_ip}", "tipo": "tormenta", "severidad": 1,
+                 "siempre": True, "device_id": equipo.id if equipo else None,
+                 "titulo": f"Tormenta de logs desde {source_ip}",
+                 "detalle": f"Más de {LIMITE_POR_MINUTO} eventos nuevos por minuto. "
+                            "Los excedentes se descartan para proteger el NOC."})
         return {"resultado": "descartado_tormenta",
                 "motivo": f"Más de {LIMITE_POR_MINUTO} eventos nuevos por minuto desde {source_ip}"}
 
@@ -103,14 +124,14 @@ def ingerir(db: Session, raw: str, source_ip: str, source_type: str = "simulado"
         severity=datos["severity"],
         app_name=(datos["app_name"] or "")[:100] or None,
         message=datos["message"],
-        raw=raw[:4096],  # original como evidencia (recortado por seguridad)
+        raw=raw[:4096],
         source_type=source_type,
         fingerprint=fp,
         repeat_count=1,
         flagged_suspicious=sospechoso,
     )
     db.add(evento)
-    db.flush()  # asigna el id
+    db.flush()
 
     if sospechoso:
         db.add(AuditLog(
@@ -121,4 +142,9 @@ def ingerir(db: Session, raw: str, source_ip: str, source_type: str = "simulado"
 
     db.commit()
     db.refresh(evento)
+
+    # 7. Avisar (en segundo plano)
+    _avisar(evento)
     return _resumen("nuevo", evento)
+
+# --- FIN DEL ARCHIVO ---

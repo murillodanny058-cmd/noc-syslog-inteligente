@@ -344,3 +344,26 @@ class UserOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 # --- FIN BLOQUE FASE 7 ---
+
+
+# ===========================================================================
+# FASE 8: Notificaciones
+# ===========================================================================
+class NotificationTest(BaseModel):
+    canal: Literal["telegram", "correo", "whatsapp"] = Field(..., examples=["telegram"])
+
+
+class NotificationOut(BaseModel):
+    id: int
+    created_at: datetime
+    canal: str
+    clave: str
+    tipo: str
+    severidad: int
+    estado: str
+    titulo: str
+    detalle: Optional[str] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+# --- FIN BLOQUE FASE 8 ---

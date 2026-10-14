@@ -22,3 +22,5 @@ data/*
 .DS_Store
 Thumbs.db
 "@ | Set-Content -Path .gitignore -Encoding utf8
+# Muestras del laboratorio (IP y datos reales: NO se suben)
+lab_muestras/

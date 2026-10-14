@@ -108,6 +108,7 @@ def _usuario_por_token(token):
 PERMISOS = [
     ("GET",  r"/api/audit",                                  APROBADORES),
     ("GET",  r"/api/users.*",                                ADMIN),
+        ("GET",  r"/api/notifications.*",                        APROBADORES),
     ("GET",  r"/api/.*",                                     TODOS),
     ("POST", r"/api/auth/logout",                            TODOS),
     ("POST", r"/api/syslog/(parse|ingest|import|simulate)",  TODOS),

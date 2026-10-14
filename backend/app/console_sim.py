@@ -10,7 +10,8 @@ Política de comandos, en este orden:
   5. Todo lo demás          -> se niega ("denegar por defecto").
 
 Cada intento, permitido o no, queda en la auditoría con su actor
-(operador humano o agente de IA).
+(operador humano o agente de IA). Si el agente de IA queda suspendido,
+se envía una notificación (Fase 8).
 
 NUNCA se conecta a un equipo real: las respuestas se construyen con los datos
 simulados de la base de datos.
@@ -22,7 +23,8 @@ from sqlalchemy.orm import Session
 
 from .config_generator import generar
 from .models import AuditLog, Device, SyslogEvent
-from .politica_ia import MOTIVO_SUSPENSION, agente_suspendido
+from .notificaciones import encolar
+from .politica_ia import MAX_BLOQUEOS, MOTIVO_SUSPENSION, agente_suspendido, bloqueos_recientes_agente
 from .schemas import ConfigRequest
 from .syslog_parser import SEVERIDADES
 
@@ -202,6 +204,12 @@ def ejecutar(db: Session, eq: Device, comando_original: str, actor: str) -> dict
     def responder(categoria, salida="", motivo=None):
         permitido = categoria == "permitido"
         _auditar(db, eq, comando, actor, permitido, motivo)
+        # Fase 8: avisar en el momento exacto en que el agente queda suspendido
+        if actor == "agente_ia" and not permitido and bloqueos_recientes_agente(db) == MAX_BLOQUEOS:
+            encolar({"clave": "agente_suspendido", "tipo": "agente_suspendido", "severidad": 1,
+                     "siempre": True, "titulo": "Agente de IA SUSPENDIDO",
+                     "detalle": f"Acumuló {MAX_BLOQUEOS} comandos bloqueados. Último intento en "
+                                f"{eq.name}: {comando[:80]}. Requiere revisión humana."})
         return {"prompt": prompt, "comando": comando, "categoria": categoria,
                 "permitido": permitido, "salida": salida, "motivo": motivo}
 

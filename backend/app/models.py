@@ -185,3 +185,27 @@ class UserSession(Base):
     expires_at = Column(DateTime, nullable=False)
 
 # --- FIN BLOQUE FASE 7 ---
+
+
+# ---------------------------------------------------------------------------
+# 7. NOTIFICACIONES (Fase 8): historial de avisos enviados, silenciados o fallidos
+# ---------------------------------------------------------------------------
+class Notification(Base):
+    __tablename__ = "notifications"
+
+    id = Column(Integer, primary_key=True, index=True)
+    created_at = Column(DateTime, default=ahora_utc, nullable=False)
+    canal = Column(String(20), nullable=False)       # telegram, correo, whatsapp, todos
+    clave = Column(String(120), nullable=False)      # identifica "el mismo problema"
+    tipo = Column(String(30), nullable=False)        # evento, sospechoso, tormenta, agente_suspendido, prueba
+    severidad = Column(Integer, nullable=False)
+    estado = Column(String(20), nullable=False)      # enviado, silenciado, limitado, mantenimiento, error
+    titulo = Column(String(200), nullable=False)
+    detalle = Column(Text)                           # motivo del error (sin credenciales)
+
+    __table_args__ = (
+        Index("ix_notif_canal_estado", "canal", "estado", "created_at"),
+        Index("ix_notif_clave", "clave"),
+    )
+
+# --- FIN BLOQUE FASE 8 ---
