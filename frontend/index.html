@@ -41,6 +41,7 @@
         Configuraciones
       </button>
       <button class="pestana" data-vista="consola">Consola</button>
+      <button class="pestana" data-vista="cambios">Cambios</button>
     </nav>
 
     <main>
@@ -483,6 +484,112 @@
         </div>
       </section>
       <!-- FIN VISTAS FASE 5 -->
+
+      <!-- ================= VISTA 7: CAMBIOS CON APROBACIÓN (FASE 11) ================= -->
+      <section id="vista-cambios" class="vista">
+        <form id="form-cambio" class="formulario panel">
+          <h2 class="ancho">Proponer un cambio de configuración</h2>
+          <p class="nota ancho">
+            Solo se permiten cambios del catálogo. Otra persona con rol
+            aprobador debe aprobarlo antes de ejecutarlo. El NOC hace un
+            respaldo, aplica el cambio por la consola, lo verifica y lo deshace
+            si algo falla. Nunca guarda en la memoria del equipo.
+          </p>
+          <label
+            >Equipo<select id="cam-equipo" name="device_id"></select
+          ></label>
+          <label
+            >Tipo de cambio
+            <select id="cam-plantilla" name="plantilla">
+              <option value="syslog_servidor">
+                Enviar logs al NOC (Syslog)
+              </option>
+              <option value="descripcion_puerto">
+                Descripción de un puerto
+              </option>
+              <option value="estado_puerto">Apagar / encender un puerto</option>
+            </select>
+          </label>
+          <label data-campo="ip"
+            >IP del NOC<input
+              name="ip"
+              placeholder="192.168.100.10"
+              maxlength="15"
+          /></label>
+          <label data-campo="puerto"
+            >Puerto UDP<input
+              name="puerto"
+              type="number"
+              value="5514"
+              min="1"
+              max="65535"
+          /></label>
+          <label data-campo="nivel"
+            >Nivel mínimo
+            <select name="nivel">
+              <option value="informational">informational (6)</option>
+              <option value="notifications">notifications (5)</option>
+              <option value="warnings">warnings (4)</option>
+              <option value="errors">errors (3)</option>
+            </select>
+          </label>
+          <label data-campo="interfaz"
+            >Puerto<input name="interfaz" placeholder="Fa0/1" maxlength="30"
+          /></label>
+          <label data-campo="descripcion"
+            >Descripción<input
+              name="descripcion"
+              placeholder="PC-PROFESOR"
+              maxlength="60"
+          /></label>
+          <label data-campo="accion"
+            >Acción
+            <select name="accion">
+              <option value="apagar">Apagar (shutdown)</option>
+              <option value="encender">Encender (no shutdown)</option>
+            </select>
+          </label>
+          <label
+            >Quién propone
+            <select name="origen">
+              <option value="humano">Operador (humano)</option>
+              <option value="agente_ia">Agente de IA (simulado)</option>
+            </select>
+          </label>
+          <label class="ancho"
+            >Motivo<textarea
+              name="motivo"
+              rows="2"
+              minlength="10"
+              maxlength="300"
+              required
+              placeholder="Ej.: el switch del laboratorio debe enviar sus logs al NOC"
+            ></textarea>
+          </label>
+          <div class="botones ancho">
+            <button type="button" id="btn-cam-previa" class="btn secundario">
+              Vista previa de comandos
+            </button>
+            <button type="submit" class="btn">Proponer cambio</button>
+          </div>
+          <div id="cam-previa" class="ancho previa-cambio" hidden>
+            <p id="cam-previa-resumen" class="meta"></p>
+            <div class="rejilla">
+              <div>
+                <span class="tenue">Comandos que se enviarían:</span>
+                <pre id="cam-previa-comandos"></pre>
+              </div>
+              <div>
+                <span class="tenue">Rollback:</span>
+                <pre id="cam-previa-rollback"></pre>
+              </div>
+            </div>
+          </div>
+        </form>
+        <h2 class="subtitulo-panel">Cambios recientes</h2>
+        <div id="lista-cambios" class="incidentes"></div>
+      </section>
+      <!-- FIN VISTA FASE 11 -->
     </main>
 
     <footer class="pie">
@@ -512,6 +619,7 @@
     <script src="app.js"></script>
     <script src="herramientas.js"></script>
     <script src="puertos.js"></script>
+    <script src="cambios.js"></script>
     <script src="sesion.js"></script>
   </body>
 </html>

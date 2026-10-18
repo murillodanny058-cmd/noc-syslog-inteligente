@@ -234,3 +234,40 @@ class Port(Base):
     )
 
 # --- FIN BLOQUE FASE 10 ---
+
+# ---------------------------------------------------------------------------
+# 9. CAMBIOS DE CONFIGURACIÓN (Fase 11): con aprobación humana obligatoria
+# ---------------------------------------------------------------------------
+class ConfigChange(Base):
+    __tablename__ = "cambios_config"
+
+    id = Column(Integer, primary_key=True, index=True)
+    device_id = Column(Integer, ForeignKey("devices.id", ondelete="CASCADE"), nullable=False)
+    incident_id = Column(Integer, ForeignKey("incidents.id"), nullable=True)
+    plantilla = Column(String(40), nullable=False)       # del catálogo cerrado
+    parametros = Column(Text, nullable=False)            # JSON con los datos validados
+    motivo = Column(Text, nullable=False)                # por qué se propone
+    comandos = Column(Text, nullable=False)              # EXACTAMENTE lo que se enviará
+    rollback = Column(Text, nullable=False)              # cómo deshacerlo
+    plan = Column(Text, nullable=False)                  # JSON: respaldo, verificación, texto esperado
+    origen = Column(String(20), nullable=False)          # humano, agente_ia
+    propuesto_por = Column(String(100), nullable=False)
+    aprobado_por = Column(String(100))                   # SIEMPRE un humano distinto de quien propuso
+    ejecutado_por = Column(String(100))
+    estado = Column(String(30), nullable=False, default="propuesta")
+    nota_revision = Column(Text)
+    respaldo = Column(Text)                              # salida de los comandos de lectura ANTES del cambio
+    salida = Column(Text)                                # lo que respondió el equipo
+    resultado = Column(Text)                             # verificación / rollback
+    simulado = Column(Boolean, nullable=False, default=False)
+    creado = Column(DateTime, default=ahora_utc, nullable=False)
+    revisado = Column(DateTime)
+    ejecutado = Column(DateTime)
+
+    __table_args__ = (
+        CheckConstraint("origen IN ('humano','agente_ia')", name="ck_cambio_origen"),
+        CheckConstraint("estado IN ('propuesta','aprobada','rechazada','ejecutada','fallida',"
+                        "'verificada','verificacion_fallida','revertida')", name="ck_cambio_estado"),
+    )
+
+# --- FIN BLOQUE FASE 11 ---

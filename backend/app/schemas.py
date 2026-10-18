@@ -427,3 +427,54 @@ class PuertoDeEvento(BaseModel):
     nota: Optional[str] = None
 
 # --- FIN BLOQUE FASE 10 ---
+
+# ===========================================================================
+# FASE 11: Cambios de configuración con aprobación humana
+# ===========================================================================
+PlantillaCambio = Literal["syslog_servidor", "descripcion_puerto", "estado_puerto"]
+
+
+class CambioCreate(BaseModel):
+    """Propuesta de cambio: solo plantillas del catálogo, nunca comandos libres."""
+    device_id: int = Field(..., examples=[5])
+    plantilla: PlantillaCambio
+    parametros: dict[str, str] = Field(..., examples=[{"ip": "192.168.100.10", "puerto": "5514",
+                                                       "nivel": "informational"}])
+    motivo: str = Field(..., min_length=10, max_length=300,
+                        examples=["El switch del laboratorio debe enviar sus logs al NOC"])
+    incident_id: Optional[int] = None
+    origen: Literal["humano", "agente_ia"] = "humano"
+
+
+class CambioReview(BaseModel):
+    """Revisión HUMANA del cambio."""
+    decision: Literal["aprobada", "rechazada"]
+    nota: Optional[str] = Field(None, max_length=300)
+
+
+class CambioOut(BaseModel):
+    id: int
+    device_id: int
+    incident_id: Optional[int] = None
+    plantilla: str
+    parametros: str
+    motivo: str
+    comandos: str
+    rollback: str
+    origen: str
+    propuesto_por: str
+    aprobado_por: Optional[str] = None
+    ejecutado_por: Optional[str] = None
+    estado: str
+    nota_revision: Optional[str] = None
+    respaldo: Optional[str] = None
+    salida: Optional[str] = None
+    resultado: Optional[str] = None
+    simulado: bool
+    creado: datetime
+    revisado: Optional[datetime] = None
+    ejecutado: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+# --- FIN BLOQUE FASE 11 ---

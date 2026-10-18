@@ -13,8 +13,8 @@ from sqlalchemy.orm import Session
 from . import models
 from .config import APP_NAME, APP_VERSION, BASE_DIR
 from .database import MOTOR, Base, engine, get_db
-from .routers import (alertas, auth, consola_real, dashboard, devices, herramientas, incidents,
-                      politica,puertos, syslog, usuarios)
+from .routers import (alertas, auth, cambios, consola_real, dashboard, devices, herramientas,
+                      incidents, politica, puertos, syslog, usuarios)
 from .seguridad import autorizar
 
 # Crea las tablas que falten (incluye users, user_sessions y notifications)
@@ -40,7 +40,7 @@ RESPUESTAS = {
 
 app.include_router(auth.router, responses=RESPUESTAS)
 for modulo in (dashboard, devices, syslog, incidents, herramientas, politica, usuarios, alertas,
-               consola_real, puertos):
+               consola_real, puertos, cambios):
     app.include_router(modulo.router, dependencies=PROTEGIDO, responses=RESPUESTAS)
 
 
