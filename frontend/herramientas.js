@@ -1,8 +1,10 @@
 "use strict";
 /*
- * NOC Syslog Inteligente — Herramientas (Fase 5)
+ * NOC Syslog Inteligente — Herramientas (Fases 5 y 9)
  *   - Generador de configuraciones Syslog comentadas
  *   - Consola simulada de solo lectura (tipo PuTTY)
+ *   - Consola REAL por cable de consola (puerto COM): comandos de solo lectura
+ *     y captura de los logs que imprime el equipo
  *
  * Usa funciones de app.js: api(), aviso(), $(), cargarEquipos() y la lista "equipos".
  * SEGURIDAD: toda salida se escribe con textContent, nunca como HTML.
@@ -122,8 +124,16 @@ function probarEnConsola(comando, nombreEquipo) {
 }
 
 // ===========================================================================
-// Consola simulada
+// Consola: simulada (Fase 5) o REAL por cable de consola (Fase 9)
 // ===========================================================================
+let serialUltimo = 0; // última línea de la consola real que ya se mostró
+let serialTimer = null; // consulta periódica mientras la consola real está abierta
+let serialEstado = null; // último estado recibido del servidor
+
+function modoReal() {
+  return $("#con-modo").value === "real";
+}
+
 function equipoConsola() {
   return equipos.find((e) => e.id === Number($("#con-equipo").value));
 }
@@ -134,21 +144,26 @@ function escribirLinea(texto, clase = "") {
   linea.textContent = texto; // NUNCA innerHTML: la salida puede traer texto de logs
   const pantalla = $("#terminal-salida");
   pantalla.appendChild(linea);
+  while (pantalla.childElementCount > 1500) pantalla.firstChild.remove();
   pantalla.scrollTop = pantalla.scrollHeight;
 }
 
 function actualizarPrompt() {
   const eq = equipoConsola();
+  if (modoReal() && serialEstado && serialEstado.conectado) {
+    $("#con-prompt").textContent =
+      serialEstado.prompt || `${serialEstado.equipo.name}#`;
+    return;
+  }
   $("#con-prompt").textContent = eq
     ? PROMPT_POR_VENDOR[eq.vendor](eq.name)
     : ">";
 }
 
 async function cargarPolitica(vendor) {
+  const base = modoReal() ? "/serial/commands" : "/console/commands";
   try {
-    const p = await api(
-      `/console/commands?vendor=${encodeURIComponent(vendor)}`,
-    );
+    const p = await api(`${base}?vendor=${encodeURIComponent(vendor)}`);
     const permitidos = $("#politica-permitidos");
     permitidos.innerHTML = "";
     p.permitidos.forEach((c) => {
@@ -172,6 +187,34 @@ async function conectarConsola() {
   $("#terminal-salida").innerHTML = "";
   const eq = equipoConsola();
   actualizarPrompt();
+  if (modoReal()) {
+    serialUltimo = 0;
+    escribirLinea(
+      "*** CONSOLA REAL POR CABLE DE CONSOLA · SOLO LECTURA ***",
+      "t-info",
+    );
+    escribirLinea("1) Conecte el cable de consola y cierre PuTTY.", "t-info");
+    escribirLinea(
+      "2) Presione 'Buscar puertos', elija el COM y presione 'Conectar'.",
+      "t-info",
+    );
+    escribirLinea(
+      "Los logs del equipo aparecerán aquí en amarillo y se guardarán en Eventos.",
+      "t-info",
+    );
+    escribirLinea("");
+    if (!eq) {
+      escribirLinea(
+        "No hay equipos REALES en el inventario. Registre el equipo del laboratorio " +
+          "en Inventario con Tipo de equipo: Real (laboratorio).",
+        "t-bloqueado",
+      );
+    } else {
+      await cargarPolitica(eq.vendor);
+    }
+    await refrescarSerial();
+    return;
+  }
   if (!eq) {
     escribirLinea(
       "No hay equipos Cisco, Fortinet o Huawei en el inventario.",
@@ -199,14 +242,22 @@ async function cargarConsola() {
     aviso(error.message, "error");
     return;
   }
+  const real = modoReal();
+  $("#panel-serial").hidden = !real;
   const select = $("#con-equipo");
   const anterior = select.value;
-  const compatibles = equipos.filter((e) => VENDORS_CONSOLA.includes(e.vendor));
+  const compatibles = equipos.filter(
+    (e) =>
+      VENDORS_CONSOLA.includes(e.vendor) && Boolean(e.is_simulated) !== real,
+  );
   select.innerHTML = "";
   compatibles.forEach((e) =>
-    select.appendChild(new Option(`${e.name} (${e.vendor})`, e.id)),
+    select.appendChild(
+      new Option(`${e.name} (${e.vendor}${real ? " · REAL" : ""})`, e.id),
+    ),
   );
   if (anterior) select.value = anterior;
+  if (!select.value && compatibles.length) select.value = compatibles[0].id;
 
   // Si venimos desde "Verificación", elegir ese equipo
   if (pendienteConsola && pendienteConsola.id)
@@ -217,7 +268,10 @@ async function cargarConsola() {
     $("#terminal-salida").childElementCount === 0
   ) {
     await conectarConsola();
+  } else if (real) {
+    await refrescarSerial();
   }
+  if (real && $("#ser-puerto").childElementCount === 0) await buscarPuertos();
   actualizarPrompt();
 
   if (pendienteConsola) {
@@ -227,12 +281,159 @@ async function cargarConsola() {
   $("#con-comando").focus();
 }
 
+// ---------------------------------------------------------------------------
+// Consola REAL (Fase 9)
+// ---------------------------------------------------------------------------
+async function buscarPuertos() {
+  const select = $("#ser-puerto");
+  select.innerHTML = "";
+  try {
+    const lista = await api("/serial/puertos");
+    if (!lista.length) {
+      select.appendChild(new Option("(no hay puertos: conecte el cable)", ""));
+      return;
+    }
+    lista.forEach((p) =>
+      select.appendChild(
+        new Option(`${p.puerto} — ${p.descripcion}`, p.puerto),
+      ),
+    );
+    // Preferir el adaptador USB-serial (el cable de consola)
+    const usb = lista.find((p) =>
+      /usb|serial|prolific|ftdi|ch34|cp21/i.test(p.descripcion),
+    );
+    if (usb) select.value = usb.puerto;
+  } catch (error) {
+    select.appendChild(new Option("(error al buscar puertos)", ""));
+    aviso(error.message, "error");
+  }
+}
+
+function pintarEstadoSerial(e) {
+  const caja = $("#ser-estado");
+  if (e.conectado) {
+    let texto = `🟢 Conectado a ${e.puerto} · ${e.equipo.name} · logs capturados: ${e.eventos_capturados}`;
+    if (e.login_requerido)
+      texto +=
+        " · ⚠️ El equipo pide usuario/contraseña (inicie sesión una vez en PuTTY)";
+    caja.textContent = texto;
+    // Mostrar el puerto y el equipo que realmente están en uso
+    const sel = $("#ser-puerto");
+    if (![...sel.options].some((o) => o.value === e.puerto))
+      sel.appendChild(new Option(e.puerto, e.puerto));
+    sel.value = e.puerto;
+    $("#ser-velocidad").value = String(e.velocidad);
+    if (
+      [...$("#con-equipo").options].some((o) => Number(o.value) === e.equipo.id)
+    )
+      $("#con-equipo").value = e.equipo.id;
+  } else {
+    caja.textContent = e.ultimo_error
+      ? `🔴 ${e.ultimo_error}`
+      : "⚪ Desconectado";
+  }
+  caja.classList.toggle("conectado", e.conectado);
+  $("#btn-ser-conectar").disabled = e.conectado;
+  $("#btn-ser-desconectar").disabled = !e.conectado;
+  $("#ser-puerto").disabled = e.conectado;
+  $("#ser-velocidad").disabled = e.conectado;
+  $("#con-equipo").disabled = e.conectado;
+}
+
+async function refrescarSerial() {
+  if (!modoReal()) return detenerSondeo();
+  let e;
+  try {
+    e = await api(`/serial/estado?desde=${serialUltimo}`);
+  } catch (error) {
+    return detenerSondeo();
+  }
+  if (e.ultimo < serialUltimo) {
+    // El servidor se reinició: volver a pedir todo
+    serialUltimo = 0;
+    e = await api("/serial/estado?desde=0");
+  }
+  const clases = {
+    log: "t-log",
+    info: "t-info",
+    error: "t-bloqueado",
+    consola: "",
+  };
+  e.lineas.forEach((l) => escribirLinea(l.texto, clases[l.tipo] || ""));
+  serialUltimo = e.ultimo;
+  serialEstado = e;
+  pintarEstadoSerial(e);
+  actualizarPrompt();
+  if (e.conectado && !serialTimer) {
+    serialTimer = setInterval(refrescarSerial, 1500);
+  } else if (!e.conectado) {
+    detenerSondeo();
+  }
+}
+
+function detenerSondeo() {
+  if (serialTimer) clearInterval(serialTimer);
+  serialTimer = null;
+}
+
+async function serialConectar() {
+  const eq = equipoConsola();
+  const puerto = $("#ser-puerto").value;
+  if (!eq) return aviso("Elija un equipo REAL del inventario", "error");
+  if (!puerto)
+    return aviso("Elija un puerto COM (presione 'Buscar puertos')", "error");
+  $("#btn-ser-conectar").disabled = true;
+  escribirLinea(`Abriendo ${puerto}...`, "t-info");
+  try {
+    await api("/serial/conectar", {
+      method: "POST",
+      body: JSON.stringify({
+        puerto,
+        velocidad: Number($("#ser-velocidad").value),
+        device_id: eq.id,
+      }),
+    });
+    aviso(`Consola real conectada a ${eq.name}`);
+  } catch (error) {
+    escribirLinea(`% ${error.message}`, "t-bloqueado");
+    aviso(error.message, "error");
+  }
+  await refrescarSerial();
+}
+
+async function serialDesconectar() {
+  try {
+    await api("/serial/desconectar", { method: "POST" });
+    aviso("Consola real desconectada");
+  } catch (error) {
+    aviso(error.message, "error");
+  }
+  await refrescarSerial();
+}
+
+function cambiarModo() {
+  detenerSondeo();
+  serialEstado = null;
+  $("#con-equipo").disabled = false;
+  $("#con-equipo").value = "";
+  $("#terminal-salida").innerHTML = "";
+  cargarConsola();
+}
+
 async function ejecutarComando(evento) {
   evento.preventDefault();
   const entrada = $("#con-comando");
   const comando = entrada.value.trim();
   const eq = equipoConsola();
+  const real = modoReal();
   if (!comando || !eq) return;
+  if (real && !(serialEstado && serialEstado.conectado)) {
+    escribirLinea(
+      "% Primero conecte la consola real (botón Conectar).",
+      "t-invalido",
+    );
+    return;
+  }
 
   historialConsola.push(comando);
   posicionHistorial = historialConsola.length;
@@ -246,10 +447,15 @@ async function ejecutarComando(evento) {
   );
 
   try {
-    const r = await api("/console/exec", {
-      method: "POST",
-      body: JSON.stringify({ device_id: eq.id, comando, actor }),
-    });
+    const r = real
+      ? await api("/serial/exec", {
+          method: "POST",
+          body: JSON.stringify({ comando, actor }),
+        })
+      : await api("/console/exec", {
+          method: "POST",
+          body: JSON.stringify({ device_id: eq.id, comando, actor }),
+        });
     if (r.permitido) {
       (r.salida || "(sin resultados)")
         .split("\n")
@@ -269,6 +475,7 @@ async function ejecutarComando(evento) {
     escribirLinea(`% Error: ${error.message}`, "t-bloqueado");
   }
   escribirLinea("");
+  if (real) await refrescarSerial();
 }
 
 function navegarHistorial(evento) {
@@ -309,6 +516,11 @@ document.addEventListener("DOMContentLoaded", () => {
   $("#con-equipo").addEventListener("change", conectarConsola);
   $("#con-actor").addEventListener("change", actualizarModoActor);
   $("#btn-limpiar-consola").addEventListener("click", conectarConsola);
+  // Fase 9: consola real
+  $("#con-modo").addEventListener("change", cambiarModo);
+  $("#btn-ser-puertos").addEventListener("click", buscarPuertos);
+  $("#btn-ser-conectar").addEventListener("click", serialConectar);
+  $("#btn-ser-desconectar").addEventListener("click", serialDesconectar);
 });
 
 // --- FIN DEL ARCHIVO ---

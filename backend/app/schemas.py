@@ -367,3 +367,23 @@ class NotificationOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 # --- FIN BLOQUE FASE 8 ---
+# ===========================================================================
+# FASE 9: Consola REAL por cable de consola (puerto serial / COM)
+# ===========================================================================
+# Windows: COM1..COM256 · Linux: /dev/ttyUSB0, /dev/ttyACM0, /dev/ttyS0
+PATRON_PUERTO = r"^(COM\d{1,3}|/dev/tty(USB|ACM|S)\d{1,3})$"
+
+
+class SerialConectar(BaseModel):
+    """Datos para abrir la consola real."""
+    puerto: str = Field(..., pattern=PATRON_PUERTO, examples=["COM3"])
+    velocidad: Literal[9600, 19200, 38400, 57600, 115200] = 9600
+    device_id: int = Field(..., examples=[5])
+
+
+class SerialExec(BaseModel):
+    """Un comando de solo lectura para el equipo real."""
+    comando: str = Field(..., min_length=1, max_length=200, examples=["show ip interface brief"])
+    actor: Literal["operador", "agente_ia"] = "operador"
+
+# --- FIN BLOQUE FASE 9 ---

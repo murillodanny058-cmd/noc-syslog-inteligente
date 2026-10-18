@@ -63,14 +63,18 @@ async function api(ruta, opciones = {}) {
   try {
     respuesta = await fetch("/api" + ruta, {
       ...opciones,
-      headers: { "Content-Type": "application/json", ...(opciones.headers || {}) },
+      headers: {
+        "Content-Type": "application/json",
+        ...(opciones.headers || {}),
+      },
     });
   } catch (error) {
     marcarConexion(false); // el servidor no respondió
     throw new Error("No hay conexión con el servidor");
   }
   marcarConexion(true);
-  if (respuesta.status === 401) { // sin sesión: ir al login
+  if (respuesta.status === 401) {
+    // sin sesión: ir al login
     location.href = "/login.html";
     throw new Error("Debe iniciar sesión");
   }
@@ -445,7 +449,7 @@ async function cargarInventario() {
         .map(
           (d) => `
       <tr>
-        <td><strong>${esc(d.name)}</strong></td>
+                <td><strong>${esc(d.name)}</strong>${d.is_simulated ? "" : ' <span class="etiqueta-real">REAL</span>'}</td>
         <td>${esc(d.ip_address)}</td>
         <td>${esc(d.vendor)}</td>
         <td>${esc(d.model || "—")}</td>
@@ -482,6 +486,7 @@ function editarEquipo(id) {
   ]) {
     form.elements[campo].value = d[campo] ?? "";
   }
+  form.elements.tipo_equipo.value = d.is_simulated ? "simulado" : "real";
   $("#titulo-form-equipo").textContent = `Editar equipo: ${d.name}`;
   form.scrollIntoView({ behavior: "smooth" });
 }
@@ -510,6 +515,7 @@ async function guardarEquipo(evento) {
     const valor = String(f.get(campo) ?? "").trim();
     if (valor) datos[campo] = valor;
   }
+  datos.is_simulated = f.get("tipo_equipo") !== "real"; // Fase 9: equipos reales del laboratorio
   try {
     if (id) {
       await api(`/devices/${Number(id)}`, {

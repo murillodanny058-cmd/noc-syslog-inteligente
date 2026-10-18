@@ -116,6 +116,8 @@ PERMISOS = [
     ("PUT",  r"/api/incidents/\d+",                          TODOS),
     ("POST", r"/api/config/generate",                        TODOS),
     ("POST", r"/api/console/exec",                           TODOS),
+        ("POST", r"/api/serial/exec",                            TODOS),
+    ("POST", r"/api/serial/(conectar|desconectar)",          APROBADORES),
     ("POST", r"/api/proposals",                              TODOS),
     ("POST", r"/api/proposals/\d+/(review|execute|verify)",  APROBADORES),
 ]

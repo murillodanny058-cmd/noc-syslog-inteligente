@@ -418,3 +418,16 @@ details[open] summary { margin-bottom: 1rem; }
 .error-login { color: var(--s1); font-size: 0.85rem; margin: 0; }
 /* --- FIN BLOQUE FASE 7 --- */
 /* --- FIN BLOQUE FASE 5 --- */
+
+/* =====================================================================
+   FASE 9: consola REAL por cable de consola (puerto COM)
+   ===================================================================== */
+.panel-serial { border-color: var(--s3); }
+.barra-consola label.corto { min-width: 120px; }
+.estado-serial { flex-basis: 100%; margin: 0; font-size: 0.85rem; color: var(--tenue); }
+.estado-serial.conectado { color: #4cff88; font-weight: 700; }
+.nota-serial { flex-basis: 100%; margin: 0; }
+.t-log { color: #ffd84d; }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.etiqueta-real { font-size: 0.65rem; font-weight: 700; color: #000; background: var(--s3); border-radius: 4px; padding: 0.05rem 0.35rem; vertical-align: middle; }
+/* --- FIN BLOQUE FASE 9 --- */

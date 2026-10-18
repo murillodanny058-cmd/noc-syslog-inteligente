@@ -7,3 +7,5 @@ SQLAlchemy>=2.0
 # Lee variables del archivo .env
 python-dotenv>=1.0
 psycopg[binary]>=3.2
+# Consola real por cable de consola (puerto COM / serial) - Fase 9
+pyserial>=3.5
