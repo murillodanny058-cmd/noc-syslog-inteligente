@@ -209,3 +209,28 @@ class Notification(Base):
     )
 
 # --- FIN BLOQUE FASE 8 ---
+
+# ---------------------------------------------------------------------------
+# 8. PUERTOS (Fase 10): en qué puerto pasó el evento y qué hay conectado ahí
+# ---------------------------------------------------------------------------
+class Port(Base):
+    __tablename__ = "puertos"
+
+    id = Column(Integer, primary_key=True, index=True)
+    device_id = Column(Integer, ForeignKey("devices.id", ondelete="CASCADE"), nullable=False)
+    interfaz = Column(String(64), nullable=False)    # nombre largo: GigabitEthernet1/0/5
+    corto = Column(String(20))                       # abreviado: Gi1/0/5
+    estado = Column(String(20), default="desconocido")  # up, down, admin-down, err-disabled
+    vlan = Column(String(20))
+    descripcion = Column(String(120))
+    vecino = Column(String(200))                     # equipo conectado (CDP/LLDP) y su puerto
+    mac = Column(Text)                               # MAC aprendidas en ese puerto (máx. 10)
+    origen = Column(String(20), nullable=False, default="evento")  # simulado, consola, evento
+    actualizado = Column(DateTime, default=ahora_utc)
+    ultimo_evento_id = Column(Integer, nullable=True)  # último log que mencionó este puerto
+
+    __table_args__ = (
+        Index("ux_puerto_equipo_interfaz", "device_id", "interfaz", unique=True),
+    )
+
+# --- FIN BLOQUE FASE 10 ---

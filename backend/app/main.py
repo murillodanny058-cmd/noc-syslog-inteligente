@@ -14,7 +14,7 @@ from . import models
 from .config import APP_NAME, APP_VERSION, BASE_DIR
 from .database import MOTOR, Base, engine, get_db
 from .routers import (alertas, auth, consola_real, dashboard, devices, herramientas, incidents,
-                      politica, syslog, usuarios)
+                      politica,puertos, syslog, usuarios)
 from .seguridad import autorizar
 
 # Crea las tablas que falten (incluye users, user_sessions y notifications)
@@ -40,7 +40,7 @@ RESPUESTAS = {
 
 app.include_router(auth.router, responses=RESPUESTAS)
 for modulo in (dashboard, devices, syslog, incidents, herramientas, politica, usuarios, alertas,
-               consola_real):
+               consola_real, puertos):
     app.include_router(modulo.router, dependencies=PROTEGIDO, responses=RESPUESTAS)
 
 

@@ -145,6 +145,13 @@ class EventOut(BaseModel):
         """Nombre de la severidad (ej. 2 -> Critical), calculado automáticamente."""
         return SEVERIDADES.get(self.severity, "?")
 
+    @computed_field
+    @property
+    def interfaz(self) -> Optional[str]:
+        """Fase 10: puerto mencionado en el mensaje (ej. GigabitEthernet1/0/5)."""
+        from .puertos import extraer_interfaz  # import aquí para evitar import circular
+        return extraer_interfaz(self.message)
+
 
 
 # ===========================================================================
@@ -387,3 +394,36 @@ class SerialExec(BaseModel):
     actor: Literal["operador", "agente_ia"] = "operador"
 
 # --- FIN BLOQUE FASE 9 ---
+
+# ===========================================================================
+# FASE 10: Puertos e interfaces
+# ===========================================================================
+class PortOut(BaseModel):
+    """Un puerto de un equipo."""
+    id: int
+    device_id: int
+    interfaz: str
+    corto: Optional[str] = None
+    estado: Optional[str] = None
+    vlan: Optional[str] = None
+    descripcion: Optional[str] = None
+    vecino: Optional[str] = None
+    mac: Optional[str] = None
+    origen: str
+    actualizado: Optional[datetime] = None
+    ultimo_evento_id: Optional[int] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class PuertoDeEvento(BaseModel):
+    """Respuesta de 'ver puerto' de un evento."""
+    evento_id: int
+    device_id: Optional[int] = None
+    equipo: Optional[str] = None
+    interfaz: Optional[str] = None
+    puerto: Optional[PortOut] = None
+    eventos_del_puerto: list[EventOut] = []
+    nota: Optional[str] = None
+
+# --- FIN BLOQUE FASE 10 ---

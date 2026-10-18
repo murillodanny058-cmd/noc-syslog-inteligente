@@ -268,6 +268,14 @@ async function simularTrafico() {
 // ===========================================================================
 // VISTA 2: Eventos con filtros
 // ===========================================================================
+/** Fase 10: GigabitEthernet1/0/5 -> Gi1/0/5 (para que quepa en la tabla). */
+function nombreCortoPuerto(nombre) {
+  return String(nombre)
+    .replace(/^TenGigabitEthernet/, "Te")
+    .replace(/^GigabitEthernet/, "Gi")
+    .replace(/^FastEthernet/, "Fa")
+    .replace(/^Port-channel/, "Po");
+}
 function filaEvento(e) {
   const equipo = nombreEquipo(e.device_id);
   const origen = equipo
@@ -282,6 +290,7 @@ function filaEvento(e) {
       <td>${origen}</td>
       <td>${esc(e.vendor || "—")}</td>
       <td>${esc(e.app_name || "—")}</td>
+                 <td>${e.interfaz ? `<button class="btn mini puerto" data-puerto="${Number(e.id)}" title="${esc(e.interfaz)}">🔌 ${esc(nombreCortoPuerto(e.interfaz))}</button>` : "—"}</td>
       <td class="msg">${esc(e.message)}${ia}</td>
       <td>${Number(e.repeat_count)}</td>
       <td><button class="btn mini secundario" data-crear-incidente="${Number(e.id)}">Crear incidente</button></td>
@@ -305,7 +314,7 @@ async function cargarEventos() {
       `${eventos.length} eventos (máximo 200, del más reciente al más antiguo)`;
     $("#tabla-eventos").innerHTML =
       eventos.map(filaEvento).join("") ||
-      `<tr><td colspan="8" class="vacio">No hay eventos con esos filtros</td></tr>`;
+      `<tr><td colspan="9" class="vacio">No hay eventos con esos filtros</td></tr>`;
   } catch (error) {
     aviso(error.message, "error");
   }
@@ -458,7 +467,8 @@ async function cargarInventario() {
         <td><span class="estado-equipo ${esc(d.status)}">${esc(d.status)}</span></td>
         <td>${esc(fecha(d.updated_at))}</td>
         <td><div class="botones">
-          <button class="btn mini secundario" data-editar="${Number(d.id)}">Editar</button>
+                  <button class="btn mini secundario" data-puertos="${Number(d.id)}">Puertos</button>
+        <button class="btn mini secundario" data-editar="${Number(d.id)}">Editar</button>
           <button class="btn mini peligro" data-eliminar="${Number(d.id)}">Eliminar</button>
         </div></td>
       </tr>`,

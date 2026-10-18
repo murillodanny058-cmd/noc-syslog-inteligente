@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 
 from .models import AuditLog, Device, SyslogEvent
 from .notificaciones import SEV_MAX_GLOBAL, encolar
+from .puertos import actualizar_por_evento
 from .syslog_parser import SEVERIDADES, limpiar, parsear
 
 VENTANA_DEDUP = timedelta(seconds=60)  # mismo mensaje dentro de 60 s = duplicado
@@ -132,6 +133,12 @@ def ingerir(db: Session, raw: str, source_ip: str, source_type: str = "simulado"
     )
     db.add(evento)
     db.flush()
+
+        # Fase 10: si el log dice que un puerto subió o cayó, se actualiza el estado de ese puerto
+    try:
+        actualizar_por_evento(db, evento)
+    except Exception:
+        pass  # el puerto es información extra: nunca debe impedir que se guarde el evento
 
     if sospechoso:
         db.add(AuditLog(

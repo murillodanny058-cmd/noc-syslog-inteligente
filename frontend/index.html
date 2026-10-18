@@ -121,6 +121,7 @@
                 <th>Equipo</th>
                 <th>Marca</th>
                 <th>Aplicación</th>
+                <th>Puerto</th>
                 <th>Mensaje</th>
                 <th>Rep.</th>
                 <th></th>
@@ -489,11 +490,28 @@
       como datos no confiables
     </footer>
 
+    <!-- FASE 10: ventana de detalle de puertos -->
+    <dialog id="dialogo-puerto" class="dialogo">
+      <div class="dialogo-contenido">
+        <div class="dialogo-cabecera">
+          <h2 id="dialogo-puerto-titulo">Puerto</h2>
+          <button
+            type="button"
+            id="btn-cerrar-puerto"
+            class="btn mini secundario"
+          >
+            Cerrar
+          </button>
+        </div>
+        <div id="dialogo-puerto-cuerpo"></div>
+      </div>
+    </dialog>
     <!-- Contenedor de mensajes emergentes -->
     <div id="avisos" class="avisos" aria-live="polite"></div>
 
     <script src="app.js"></script>
     <script src="herramientas.js"></script>
+    <script src="puertos.js"></script>
     <script src="sesion.js"></script>
   </body>
 </html>

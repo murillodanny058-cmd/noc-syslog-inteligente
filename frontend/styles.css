@@ -431,3 +431,29 @@ details[open] summary { margin-bottom: 1rem; }
 .btn:disabled { opacity: 0.45; cursor: not-allowed; }
 .etiqueta-real { font-size: 0.65rem; font-weight: 700; color: #000; background: var(--s3); border-radius: 4px; padding: 0.05rem 0.35rem; vertical-align: middle; }
 /* --- FIN BLOQUE FASE 9 --- */
+
+/* =====================================================================
+   FASE 10: puertos e interfaces
+   ===================================================================== */
+.btn.mini.puerto { white-space: nowrap; font-family: ui-monospace, Consolas, monospace; }
+.dialogo { padding: 0; border: 1px solid var(--borde); border-radius: var(--radio); background: var(--panel); color: var(--texto); width: min(760px, calc(100vw - 32px)); max-height: calc(100vh - 48px); }
+.dialogo::backdrop { background: rgba(0, 0, 0, 0.6); }
+.dialogo-contenido { padding: 1rem 1.2rem 1.2rem; }
+.dialogo-cabecera { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 0.6rem; }
+.dialogo-cabecera h2 { margin: 0; font-size: 1.1rem; }
+.ficha-puerto { display: grid; gap: 0.35rem; margin: 0.6rem 0 1rem; }
+.ficha-fila { display: grid; grid-template-columns: 190px 1fr; gap: 0.6rem; padding: 0.35rem 0; border-bottom: 1px solid var(--borde); font-size: 0.88rem; }
+.ficha-fila span { color: var(--tenue); }
+.ficha-fila strong { font-weight: 600; word-break: break-word; }
+.estado-puerto { display: inline-block; padding: 0.1rem 0.5rem; border-radius: 999px; font-size: 0.75rem; font-weight: 700; color: #000; background: var(--s7); }
+.estado-puerto.up { background: var(--s6); }
+.estado-puerto.down { background: var(--s1); color: #fff; }
+.estado-puerto.err-disabled { background: var(--s2); }
+.lista-eventos-puerto { list-style: none; padding: 0; margin: 0 0 1rem; display: flex; flex-direction: column; gap: 0.5rem; font-size: 0.85rem; }
+.lista-eventos-puerto li { padding: 0.5rem; background: var(--panel-2); border-radius: 6px; word-break: break-word; }
+.tabla-puertos td, .tabla-puertos th { font-size: 0.82rem; }
+.mono { font-family: ui-monospace, Consolas, monospace; }
+@media (max-width: 600px) {
+  .ficha-fila { grid-template-columns: 1fr; gap: 0.1rem; }
+}
+/* --- FIN BLOQUE FASE 10 --- */
