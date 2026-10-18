@@ -63,6 +63,15 @@ def ver_auditoria(limite: int = Query(20, ge=1, le=200), db: Session = Depends(g
         for r in registros
     ]
 
+# Fase 10: el navegador siempre revisa si hay una versión nueva del dashboard
+# (evita que se quede con app.js o index.html viejos después de una actualización)
+@app.middleware("http")
+async def revisar_version_frontend(request, call_next):
+    respuesta = await call_next(request)
+    if not request.url.path.startswith("/api"):
+        respuesta.headers["Cache-Control"] = "no-cache"
+    return respuesta
+
 
 # Dashboard web. Se monta AL FINAL para que no tape las rutas /api y /docs.
 app.mount("/", StaticFiles(directory=BASE_DIR / "frontend", html=True), name="frontend")
