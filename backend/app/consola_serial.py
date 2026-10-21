@@ -202,7 +202,7 @@ class ConsolaSerial:
 
         self._agregar(f"*** Consola REAL abierta en {puerto} a {velocidad} baudios · "
                       f"equipo {equipo.name} ({equipo.vendor}) ***", "info")
-              # Despertar la consola y esperar el prompt
+        # Despertar la consola y esperar el prompt
         try:
             self._listo.clear()
             self._escribir("\r")
@@ -253,7 +253,7 @@ class ConsolaSerial:
         obj = self._puerto_obj
         if obj is None:
             raise RuntimeError("La consola no está conectada")
-                try:
+        try:
             obj.write(texto.encode("ascii", errors="ignore"))
             obj.flush()
         except Exception as exc:
@@ -346,7 +346,7 @@ class ConsolaSerial:
         with self._lock_cmd:
             self._captura = []
             self._listo.clear()
-                        try:
+            try:
                 self._escribir(comando + "\r")
             except RuntimeError:
                 self._captura = None
