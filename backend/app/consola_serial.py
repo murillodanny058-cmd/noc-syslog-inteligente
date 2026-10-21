@@ -202,14 +202,23 @@ class ConsolaSerial:
 
         self._agregar(f"*** Consola REAL abierta en {puerto} a {velocidad} baudios · "
                       f"equipo {equipo.name} ({equipo.vendor}) ***", "info")
-        # Despertar la consola y esperar el prompt
-        self._listo.clear()
-        self._escribir("\r")
-        self._listo.wait(3)
-        if not self.prompt and not self.login_requerido:
+              # Despertar la consola y esperar el prompt
+        try:
             self._listo.clear()
             self._escribir("\r")
             self._listo.wait(3)
+            if not self.prompt and not self.login_requerido:
+                self._listo.clear()
+                self._escribir("\r")
+                self._listo.wait(3)
+        except Exception:
+            self.desconectar()
+            raise RuntimeError(f"El puerto {puerto} no responde. ¿Es el puerto del cable de consola? "
+                               "Los puertos 'Bluetooth' no sirven. Revise también la velocidad (9600).") from None
+        if not self.prompt and not self.login_requerido:
+            self._agregar("⚠ El equipo no respondió. Revise que el COM sea el del cable de consola "
+                          "(no Bluetooth), que el equipo esté encendido y que la velocidad sea 9600.", "error")
+            return self.estado()
         self._preparar_sesion()
         return self.estado()
 
@@ -244,8 +253,12 @@ class ConsolaSerial:
         obj = self._puerto_obj
         if obj is None:
             raise RuntimeError("La consola no está conectada")
-        obj.write(texto.encode("ascii", errors="ignore"))
-        obj.flush()
+                try:
+            obj.write(texto.encode("ascii", errors="ignore"))
+            obj.flush()
+        except Exception as exc:
+            raise RuntimeError(f"No se pudo escribir en {self.puerto}: el equipo no responde "
+                               f"({exc.__class__.__name__}).") from None
 
     def _leer(self):
         while self._activo:
@@ -333,7 +346,11 @@ class ConsolaSerial:
         with self._lock_cmd:
             self._captura = []
             self._listo.clear()
-            self._escribir(comando + "\r")
+                        try:
+                self._escribir(comando + "\r")
+            except RuntimeError:
+                self._captura = None
+                raise
             inicio = time.monotonic()
             completo = False
             while time.monotonic() - inicio < espera:

@@ -293,16 +293,30 @@ async function buscarPuertos() {
       select.appendChild(new Option("(no hay puertos: conecte el cable)", ""));
       return;
     }
-    lista.forEach((p) =>
+    // Los puertos "Bluetooth" de Windows NO son el cable de consola: se marcan y van al final
+    const esBluetooth = (p) => /bluetooth/i.test(p.descripcion);
+    const ordenados = [
+      ...lista.filter((p) => !esBluetooth(p)),
+      ...lista.filter(esBluetooth),
+    ];
+    ordenados.forEach((p) => {
+      const aviso = esBluetooth(p) ? "  ⚠ Bluetooth: NO es el cable" : "";
       select.appendChild(
-        new Option(`${p.puerto} — ${p.descripcion}`, p.puerto),
-      ),
-    );
+        new Option(`${p.puerto} — ${p.descripcion}${aviso}`, p.puerto),
+      );
+    });
     // Preferir el adaptador USB-serial (el cable de consola)
-    const usb = lista.find((p) =>
-      /usb|serial|prolific|ftdi|ch34|cp21/i.test(p.descripcion),
+    const usb = ordenados.find(
+      (p) =>
+        !esBluetooth(p) &&
+        /usb|prolific|ftdi|ch34|cp21|serial/i.test(p.descripcion),
     );
     if (usb) select.value = usb.puerto;
+    else if (ordenados.every(esBluetooth))
+      escribirLinea(
+        "⚠ Solo hay puertos Bluetooth: conecte el cable de consola USB y presione 'Buscar puertos'.",
+        "t-invalido",
+      );
   } catch (error) {
     select.appendChild(new Option("(error al buscar puertos)", ""));
     aviso(error.message, "error");
