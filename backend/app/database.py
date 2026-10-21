@@ -4,7 +4,7 @@ Conexión a la base de datos con SQLAlchemy.
 - SQLite local si no la hay (plan B).
 """
 from sqlalchemy import create_engine, event
-from sqlalchemy.orm import declarative_base, sessionmaker
+from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
 from .config import DATABASE_URL
 
@@ -35,7 +35,8 @@ else:
         dbapi_conn.commit()
 
 SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False)
-Base = declarative_base()
+class Base(DeclarativeBase):
+    """Clase base de todos los modelos (estilo tipado de SQLAlchemy 2.0)."""
 
 
 def get_db():

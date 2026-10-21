@@ -12,7 +12,7 @@ REGLA DE ORO: este módulo SOLO extrae datos del texto. Nunca ejecuta,
 evalúa ni obedece el contenido del mensaje: los logs son datos NO confiables.
 """
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 # Niveles de severidad (0 = lo más grave, 7 = lo menos grave)
 SEVERIDADES = {

@@ -297,8 +297,28 @@ function filaEvento(e) {
     </tr>`;
 }
 
+/** No permitir fechas futuras en los filtros (el servidor también lo valida). */
+function limitarFechasEventos() {
+  const ahora = new Date();
+  ahora.setMinutes(ahora.getMinutes() - ahora.getTimezoneOffset()); // a hora local
+  const maximo = ahora.toISOString().slice(0, 16); // formato AAAA-MM-DDTHH:MM
+  const form = $("#filtros-eventos");
+  form.elements.desde.max = maximo;
+  form.elements.hasta.max = maximo;
+  form.elements.hasta.min = form.elements.desde.value || "";
+}
+
 async function cargarEventos() {
+  limitarFechasEventos();
   const f = new FormData($("#filtros-eventos"));
+  const desdeTxt = f.get("desde"),
+    hastaTxt = f.get("hasta");
+  if (desdeTxt && new Date(desdeTxt) > new Date())
+    return aviso("La fecha 'Desde' no puede estar en el futuro", "error");
+  if (hastaTxt && new Date(hastaTxt) > new Date())
+    return aviso("La fecha 'Hasta' no puede estar en el futuro", "error");
+  if (desdeTxt && hastaTxt && new Date(desdeTxt) > new Date(hastaTxt))
+    return aviso("La fecha 'Desde' no puede ser posterior a 'Hasta'", "error");
   const p = new URLSearchParams({ limite: 200 });
   for (const campo of ["vendor", "device_id", "severidad_max"]) {
     if (f.get(campo)) p.set(campo, f.get(campo));

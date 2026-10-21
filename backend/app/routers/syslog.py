@@ -7,7 +7,7 @@ Endpoints de Syslog y eventos.
   GET  /api/events           -> consultar eventos con filtros
   GET  /api/events/stats     -> resumen por severidad
 """
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -73,6 +73,19 @@ def simular(
         raise HTTPException(status_code=400, detail="No hay equipos simulados en el inventario")
     return _procesar_lote(db, generar_lote(equipos, cantidad, incluir_ataques))
 
+def validar_rango_fechas(desde: Optional[datetime], hasta: Optional[datetime]):
+    """No se aceptan fechas en el futuro ni un 'desde' posterior al 'hasta'."""
+    def utc(f):
+        f = _a_utc(f)
+        return f if f.tzinfo else f.replace(tzinfo=timezone.utc)
+
+    limite = datetime.now(timezone.utc) + timedelta(minutes=5)  # 5 min de tolerancia entre relojes
+    for nombre, valor in (("Desde", desde), ("Hasta", hasta)):
+        if valor and utc(valor) > limite:
+            raise HTTPException(status_code=422, detail=f"La fecha '{nombre}' no puede estar en el futuro")
+    if desde and hasta and utc(desde) > utc(hasta):
+        raise HTTPException(status_code=422, detail="La fecha 'Desde' no puede ser posterior a 'Hasta'")
+
 
 @router.get("/api/events", response_model=list[EventOut], summary="Consultar eventos con filtros")
 def listar_eventos(
@@ -87,6 +100,8 @@ def listar_eventos(
     limite: int = Query(100, ge=1, le=1000),
     db: Session = Depends(get_db),
 ):
+   
+    validar_rango_fechas(desde, hasta)
     consulta = db.query(SyslogEvent)
     if desde:
         consulta = consulta.filter(SyslogEvent.received_at >= _a_utc(desde))
