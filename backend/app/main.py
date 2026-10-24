@@ -6,14 +6,18 @@ Servidor principal del NOC Syslog Inteligente.
   - /login.html   -> página de inicio de sesión
   - /             -> el dashboard web
 """
+import time
+
 from fastapi import Depends, FastAPI, Query
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
+from starlette.concurrency import run_in_threadpool
 
 from . import models
 from .config import APP_NAME, APP_VERSION, BASE_DIR
-from .database import MOTOR, Base, engine, get_db
-from .routers import (alertas, auth, cambios, consola_real, dashboard, devices, herramientas,
+from . import auditor as auditor_mod
+from .database import MOTOR, Base, SessionLocal, engine, get_db
+from .routers import (alertas, auditor, auth, cambios, consola_real, dashboard, devices, herramientas,
                       incidents, politica, puertos, syslog, usuarios)
 from .seguridad import autorizar
 
@@ -40,7 +44,7 @@ RESPUESTAS = {
 
 app.include_router(auth.router, responses=RESPUESTAS)
 for modulo in (dashboard, devices, syslog, incidents, herramientas, politica, usuarios, alertas,
-               consola_real, puertos, cambios):
+               consola_real, puertos, cambios, auditor):
     app.include_router(modulo.router, dependencies=PROTEGIDO, responses=RESPUESTAS)
 
 
@@ -70,6 +74,29 @@ async def revisar_version_frontend(request, call_next):
     respuesta = await call_next(request)
     if not request.url.path.startswith("/api"):
         respuesta.headers["Cache-Control"] = "no-cache"
+    return respuesta
+
+
+# Fase 12: registrar qué hace cada usuario (para el agente auditor).
+# Se registra DESPUÉS de responder, con el usuario que 'autorizar' identificó
+# (también los intentos sin permiso, código 403). No guarda cuerpos ni cookies.
+@app.middleware("http")
+async def registrar_actividad_usuario(request, call_next):
+    inicio = time.monotonic()
+    respuesta = await call_next(request)
+    usuario = getattr(request.state, "usuario", None)
+    if usuario and auditor_mod.debe_registrarse(request.method, request.url.path):
+        def _guardar():
+            db = SessionLocal()
+            try:
+                auditor_mod.registrar_actividad(db, usuario["username"], request.method, request.url.path,
+                                                request.url.query, respuesta.status_code,
+                                                int((time.monotonic() - inicio) * 1000))
+            except Exception:
+                db.rollback()  # la auditoría nunca debe tumbar la respuesta
+            finally:
+                db.close()
+        await run_in_threadpool(_guardar)
     return respuesta
 
 

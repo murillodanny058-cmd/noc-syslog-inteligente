@@ -108,6 +108,7 @@ def _usuario_por_token(token):
 PERMISOS = [
     ("GET",  r"/api/audit",                                  APROBADORES),
     ("GET",  r"/api/users.*",                                ADMIN),
+    ("GET",  r"/api/auditor.*",                              ADMIN),
         ("GET",  r"/api/notifications.*",                        APROBADORES),
     ("GET",  r"/api/.*",                                     TODOS),
     ("POST", r"/api/auth/logout",                            TODOS),
@@ -141,6 +142,7 @@ async def autorizar(request: Request) -> dict:
     usuario = await run_in_threadpool(_usuario_por_token, request.cookies.get(COOKIE))
     if usuario is None:
         raise HTTPException(status_code=401, detail="Debe iniciar sesión")
+    request.state.usuario = usuario  # Fase 12: así el auditor ve también los intentos sin permiso
     if usuario["role"] not in roles_permitidos(request.method, request.url.path):
         raise HTTPException(status_code=403,
                             detail=f"Su rol ({usuario['role']}) no tiene permiso para esta acción")

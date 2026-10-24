@@ -471,3 +471,18 @@ details[open] summary { margin-bottom: 1rem; }
 .estado.cambio-fallida, .estado.cambio-verificacion_fallida { background: rgba(255, 69, 58, 0.18); color: var(--s1); }
 .formulario label[hidden] { display: none; }
 /* --- FIN BLOQUE FASE 11 --- */
+
+/* ===== FASE 12: agente auditor ===== */
+.riesgo { display: inline-block; padding: 0.1rem 0.5rem; border-radius: 999px; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; }
+.riesgo-info { background: rgba(76, 194, 255, 0.15); color: var(--s5); }
+.riesgo-bajo { background: rgba(62, 207, 110, 0.15); color: var(--s6); }
+.riesgo-medio { background: rgba(255, 176, 32, 0.18); color: var(--s3); }
+.riesgo-alto { background: rgba(255, 69, 58, 0.18); color: var(--s1); }
+.linea-tiempo { list-style: none; padding: 0; margin: 0.5rem 0 0; font-size: 0.85rem; display: grid; gap: 0.25rem; }
+.informe-ia h3 { margin: 1rem 0 0.4rem; font-size: 1.05rem; }
+.informe-ia h4 { margin: 0.8rem 0 0.3rem; font-size: 0.95rem; }
+.informe-ia p { margin: 0.3rem 0; line-height: 1.5; }
+.informe-ia .md-item { margin: 0.2rem 0 0.2rem 0.5rem; line-height: 1.45; }
+.informe-ia .md-item.sub { margin-left: 1.6rem; color: var(--tenue); font-size: 0.9rem; }
+#aud-resumen { margin: 0.8rem 0; }
+/* --- FIN BLOQUE FASE 12 --- */

@@ -42,6 +42,7 @@
       </button>
       <button class="pestana" data-vista="consola">Consola</button>
       <button class="pestana" data-vista="cambios">Cambios</button>
+      <button class="pestana" data-vista="auditoria">Auditoría IA</button>
     </nav>
 
     <main>
@@ -590,6 +591,40 @@
         <div id="lista-cambios" class="incidentes"></div>
       </section>
       <!-- FIN VISTA FASE 11 -->
+
+      <!-- ================= VISTA FASE 12: AGENTE AUDITOR ================= -->
+      <section id="vista-auditoria" class="vista">
+        <p id="aud-sin-permiso" class="vacio" hidden>
+          Solo el administrador puede usar el agente auditor.
+        </p>
+        <div id="aud-contenido">
+          <form id="form-auditor" class="formulario panel">
+            <h2 class="ancho">Agente auditor de usuarios</h2>
+            <p class="nota ancho">
+              Revisa qué hizo cada usuario desde que inició sesión hasta que la
+              cerró. El agente solo lee: no puede ejecutar nada. Los textos que
+              parezcan instrucciones para una IA se le ocultan.
+            </p>
+            <label>Usuario<select id="aud-usuario" name="usuario" required></select></label>
+            <label>Desde<input type="datetime-local" name="desde" /></label>
+            <label>Hasta<input type="datetime-local" name="hasta" /></label>
+            <p id="aud-motor" class="nota ancho"></p>
+            <div class="botones ancho">
+              <button type="submit" class="btn secundario">Ver sesiones</button>
+              <button type="button" id="btn-aud-informe" class="btn">Generar informe con IA</button>
+            </div>
+          </form>
+          <article id="aud-informe" class="panel panel-alerta" hidden>
+            <p id="aud-informe-cab" class="meta"></p>
+            <div id="aud-informe-texto" class="informe-ia"></div>
+          </article>
+          <div id="aud-resumen"></div>
+          <div id="aud-sesiones" class="incidentes"></div>
+          <h2 class="subtitulo-panel">Informes anteriores</h2>
+          <div id="aud-historial"></div>
+        </div>
+      </section>
+      <!-- FIN VISTA FASE 12 -->
     </main>
 
     <footer class="pie">
@@ -620,6 +655,7 @@
     <script src="herramientas.js"></script>
     <script src="puertos.js"></script>
     <script src="cambios.js"></script>
+    <script src="auditor.js"></script>
     <script src="sesion.js"></script>
   </body>
 </html>

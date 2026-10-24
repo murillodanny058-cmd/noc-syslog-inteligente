@@ -278,3 +278,46 @@ class ConfigChange(Base):
     )
 
 # --- FIN BLOQUE FASE 11 ---
+
+
+# ---------------------------------------------------------------------------
+# 12. AGENTE AUDITOR (Fase 12): actividad de cada usuario e informes
+# ---------------------------------------------------------------------------
+from datetime import datetime, timezone
+from sqlalchemy import Column, DateTime, Index, Integer, String, Text
+
+
+def ahora_utc():
+    return datetime.now(timezone.utc)
+class Actividad(Base):
+    """Cada petición a la API hecha por un usuario con sesión (incluye intentos sin permiso)."""
+    __tablename__ = "actividad"
+    id = Column(Integer, primary_key=True)
+    creado = Column(DateTime, default=ahora_utc, nullable=False)
+    usuario = Column(String(100), nullable=False)
+    metodo = Column(String(10), nullable=False)
+    ruta = Column(String(200), nullable=False)
+    consulta = Column(String(300))          # filtros usados (ej. desde, severidad)
+    estado = Column(Integer, nullable=False)  # código HTTP: 200 ok, 403 sin permiso...
+    duracion_ms = Column(Integer)
+
+    __table_args__ = (Index("ix_actividad_usuario_fecha", "usuario", "creado"),)
+
+
+class InformeAuditoria(Base):
+    """Informes del agente auditor (quién lo pidió, sobre quién, con qué motor)."""
+    __tablename__ = "informes_auditoria"
+    id = Column(Integer, primary_key=True)
+    creado = Column(DateTime, default=ahora_utc, nullable=False)
+    usuario_revisado = Column(String(100), nullable=False)
+    pedido_por = Column(String(100), nullable=False)
+    desde = Column(DateTime, nullable=False)
+    hasta = Column(DateTime, nullable=False)
+    motor = Column(String(20), nullable=False)   # claude, gemini o reglas
+    modelo = Column(String(60))
+    riesgo = Column(String(10), nullable=False)
+    sesiones = Column(Integer, nullable=False, default=0)
+    contenido = Column(Text, nullable=False)
+    nota = Column(Text)
+
+# --- FIN BLOQUE FASE 12 ---
