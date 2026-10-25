@@ -10,8 +10,8 @@ Reglas:
   - Un evento no puede tener dos incidentes abiertos al mismo tiempo.
   - Cada cambio queda registrado en la auditoría.
 """
-from datetime import datetime, timezone
-from typing import Optional
+
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
@@ -38,18 +38,21 @@ TRANSICIONES = {
 # Funciones de apoyo
 # ---------------------------------------------------------------------------
 def auditar(db: Session, accion: str, incidente_id: int, detalle: str):
-    db.add(AuditLog(actor=ACTOR, action=accion, entity_type="incidents",
-                    entity_id=incidente_id, details=detalle))
+    """Registra en la auditoría una acción sobre un incidente."""
+    db.add(
+        AuditLog(actor=ACTOR, action=accion, entity_type="incidents", entity_id=incidente_id, details=detalle)
+    )
 
 
 def obtener_o_404(db: Session, incidente_id: int) -> Incident:
+    """Busca un incidente por id o responde 404."""
     incidente = db.get(Incident, incidente_id)
     if incidente is None:
         raise HTTPException(status_code=404, detail=f"No existe el incidente {incidente_id}")
     return incidente
 
 
-def validar_referencias(db: Session, device_id: Optional[int], event_id: Optional[int]):
+def validar_referencias(db: Session, device_id: int | None, event_id: int | None):
     """El equipo y el evento indicados deben existir."""
     if device_id is not None and db.get(Device, device_id) is None:
         raise HTTPException(status_code=422, detail=f"No existe el equipo {device_id}")
@@ -62,63 +65,82 @@ def validar_referencias(db: Session, device_id: Optional[int], event_id: Optiona
 # ---------------------------------------------------------------------------
 @router.get("", response_model=list[IncidentOut], summary="Listar incidentes")
 def listar_incidentes(
-    estado: Optional[IncidentStatus] = Query(None, description="Filtrar por estado"),
-    severidad_max: Optional[int] = Query(None, ge=0, le=7, description="Desde 0 hasta este valor"),
+    estado: IncidentStatus | None = Query(None, description="Filtrar por estado"),
+    severidad_max: int | None = Query(None, ge=0, le=7, description="Desde 0 hasta este valor"),
     limite: int = Query(100, ge=1, le=500),
     db: Session = Depends(get_db),
 ):
+    """Lista incidentes con filtros de estado y severidad."""
     consulta = db.query(Incident)
     if estado:
         consulta = consulta.filter(Incident.status == estado)
     if severidad_max is not None:
         consulta = consulta.filter(Incident.severity <= severidad_max)
     # Primero los no cerrados, luego los más graves, luego los más recientes
-    return (consulta.order_by(Incident.status == "cerrado", Incident.severity, Incident.id.desc())
-            .limit(limite).all())
+    return (
+        consulta.order_by(Incident.status == "cerrado", Incident.severity, Incident.id.desc())
+        .limit(limite)
+        .all()
+    )
 
 
 @router.get("/{incidente_id}", response_model=IncidentOut, summary="Ver un incidente")
 def ver_incidente(incidente_id: int, db: Session = Depends(get_db)):
+    """Datos de un incidente o 404."""
     return obtener_o_404(db, incidente_id)
 
 
-@router.post("", response_model=IncidentOut, status_code=status.HTTP_201_CREATED,
-             summary="Crear un incidente")
+@router.post(
+    "", response_model=IncidentOut, status_code=status.HTTP_201_CREATED, summary="Crear un incidente"
+)
 def crear_incidente(datos: IncidentCreate, db: Session = Depends(get_db)):
+    """Crea un incidente manual."""
     validar_referencias(db, datos.device_id, datos.event_id)
     estado_inicial = "asignado" if datos.assigned_to else "abierto"
     incidente = Incident(**datos.model_dump(), status=estado_inicial)
     db.add(incidente)
     db.flush()
-    auditar(db, "CREATE", incidente.id,
-            f"Incidente creado ({estado_inicial}): {incidente.title[:100]}")
+    auditar(db, "CREATE", incidente.id, f"Incidente creado ({estado_inicial}): {incidente.title[:100]}")
     db.commit()
     db.refresh(incidente)
     return incidente
 
 
-@router.post("/from-event/{event_id}", response_model=IncidentOut,
-             status_code=status.HTTP_201_CREATED, summary="Crear un incidente desde un evento")
+@router.post(
+    "/from-event/{event_id}",
+    response_model=IncidentOut,
+    status_code=status.HTTP_201_CREATED,
+    summary="Crear un incidente desde un evento",
+)
 def crear_desde_evento(event_id: int, db: Session = Depends(get_db)):
+    """Crea un incidente ligado a un evento (no permite dos incidentes abiertos para el mismo evento)."""
     evento = db.get(SyslogEvent, event_id)
     if evento is None:
         raise HTTPException(status_code=404, detail=f"No existe el evento {event_id}")
 
-    abierto = (db.query(Incident)
-               .filter(Incident.event_id == event_id, Incident.status != "cerrado").first())
+    abierto = db.query(Incident).filter(Incident.event_id == event_id, Incident.status != "cerrado").first()
     if abierto:
-        raise HTTPException(status_code=409,
-                            detail=f"El evento {event_id} ya tiene el incidente #{abierto.id} sin cerrar")
+        raise HTTPException(
+            status_code=409, detail=f"El evento {event_id} ya tiene el incidente #{abierto.id} sin cerrar"
+        )
 
     origen = evento.hostname or evento.source_ip
     # El texto del log se copia como DATO (nunca se interpreta como instrucción)
     titulo = f"[{SEVERIDADES[evento.severity]}] {origen}: {evento.message}"[:200]
-    descripcion = (f"Creado desde el evento #{evento.id}. Aplicación: {evento.app_name or '-'}. "
-                   f"Repeticiones: {evento.repeat_count}. "
-                   f"Sospechoso: {'sí' if evento.flagged_suspicious else 'no'}.")
+    descripcion = (
+        f"Creado desde el evento #{evento.id}. Aplicación: {evento.app_name or '-'}. "
+        f"Repeticiones: {evento.repeat_count}. "
+        f"Sospechoso: {'sí' if evento.flagged_suspicious else 'no'}."
+    )
 
-    incidente = Incident(title=titulo, description=descripcion, severity=evento.severity,
-                         status="abierto", device_id=evento.device_id, event_id=evento.id)
+    incidente = Incident(
+        title=titulo,
+        description=descripcion,
+        severity=evento.severity,
+        status="abierto",
+        device_id=evento.device_id,
+        event_id=evento.id,
+    )
     db.add(incidente)
     db.flush()
     auditar(db, "CREATE", incidente.id, f"Incidente creado desde el evento #{evento.id}")
@@ -127,9 +149,11 @@ def crear_desde_evento(event_id: int, db: Session = Depends(get_db)):
     return incidente
 
 
-@router.put("/{incidente_id}", response_model=IncidentOut,
-            summary="Seguimiento: asignar, cambiar estado o cerrar")
+@router.put(
+    "/{incidente_id}", response_model=IncidentOut, summary="Seguimiento: asignar, cambiar estado o cerrar"
+)
 def actualizar_incidente(incidente_id: int, datos: IncidentUpdate, db: Session = Depends(get_db)):
+    """Seguimiento: asignar responsable, cambiar estado o cerrar con resolución."""
     incidente = obtener_o_404(db, incidente_id)
 
     if incidente.status == "cerrado":
@@ -150,16 +174,19 @@ def actualizar_incidente(incidente_id: int, datos: IncidentUpdate, db: Session =
     # Regla 1: solo transiciones permitidas
     if nuevo_estado != incidente.status and nuevo_estado not in TRANSICIONES[incidente.status]:
         permitidos = ", ".join(sorted(TRANSICIONES[incidente.status]))
-        raise HTTPException(status_code=409,
-                            detail=f"No se puede pasar de '{incidente.status}' a '{nuevo_estado}'. "
-                                   f"Desde '{incidente.status}' se permite: {permitidos}")
+        raise HTTPException(
+            status_code=409,
+            detail=f"No se puede pasar de '{incidente.status}' a '{nuevo_estado}'. "
+            f"Desde '{incidente.status}' se permite: {permitidos}",
+        )
     # Regla 2: asignado y en progreso requieren responsable
     if nuevo_estado in ("asignado", "en_progreso") and not responsable:
         raise HTTPException(status_code=422, detail="Debe indicar un responsable (assigned_to)")
     # Regla 3: cerrar requiere resolución
     if nuevo_estado == "cerrado" and not resolucion:
-        raise HTTPException(status_code=422,
-                            detail="Para cerrar debe escribir la resolución (mínimo 10 caracteres)")
+        raise HTTPException(
+            status_code=422, detail="Para cerrar debe escribir la resolución (mínimo 10 caracteres)"
+        )
 
     detalle = []
     for campo, valor in cambios.items():
@@ -169,7 +196,7 @@ def actualizar_incidente(incidente_id: int, datos: IncidentUpdate, db: Session =
             setattr(incidente, campo, valor)
 
     if incidente.status == "cerrado" and incidente.closed_at is None:
-        incidente.closed_at = datetime.now(timezone.utc)
+        incidente.closed_at = datetime.now(UTC)
 
     if detalle:
         accion = "CLOSE" if incidente.status == "cerrado" else "UPDATE"

@@ -97,16 +97,19 @@ function aviso(texto, tipo = "ok") {
   setTimeout(() => div.remove(), 5000);
 }
 
+/** Etiqueta de color con el número y el nombre de la severidad (0 Emergency ... 7 Debug). */
 function insigniaSeveridad(n) {
   const s = Number(n);
   return `<span class="sev s${s}">${s} ${SEVERIDADES[s] ?? "?"}</span>`;
 }
 
+/** Nombre del equipo del inventario con ese id, o null si no existe. */
 function nombreEquipo(id) {
   const equipo = equipos.find((e) => e.id === id);
   return equipo ? equipo.name : null;
 }
 
+/** Punto verde/rojo y hora de la última respuesta del servidor en el encabezado. */
 function marcarConexion(ok) {
   $("#indicador").className = "punto " + (ok ? "ok" : "error");
   $("#actualizado").textContent = ok
@@ -141,6 +144,7 @@ function tarjeta(titulo, numero, detalle, color = "") {
     </div>`;
 }
 
+/** HTML seguro (con esc) de un evento para las listas de la pestaña Resumen. */
 function itemEvento(e) {
   const origen = nombreEquipo(e.device_id) || e.hostname || e.source_ip;
   const repeticiones =
@@ -154,6 +158,7 @@ function itemEvento(e) {
     </div>`;
 }
 
+/** Pestaña Resumen: tarjetas, gráfico por severidad, estado de equipos, críticos y sospechosos. */
 async function cargarResumen() {
   try {
     const r = await api("/dashboard/resumen");
@@ -247,6 +252,7 @@ async function cargarResumen() {
   }
 }
 
+/** Botón 'Simular tráfico': genera 30 mensajes de prueba y recarga el Resumen. */
 async function simularTrafico() {
   const boton = $("#btn-simular");
   boton.disabled = true;
@@ -276,6 +282,7 @@ function nombreCortoPuerto(nombre) {
     .replace(/^FastEthernet/, "Fa")
     .replace(/^Port-channel/, "Po");
 }
+/** Fila HTML segura de la tabla de Eventos, con el botón 🔌 del puerto si el mensaje lo menciona. */
 function filaEvento(e) {
   const equipo = nombreEquipo(e.device_id);
   const origen = equipo
@@ -308,6 +315,7 @@ function limitarFechasEventos() {
   form.elements.hasta.min = form.elements.desde.value || "";
 }
 
+/** Pestaña Eventos: valida las fechas, aplica los filtros y dibuja la tabla. */
 async function cargarEventos() {
   limitarFechasEventos();
   const f = new FormData($("#filtros-eventos"));
@@ -340,6 +348,7 @@ async function cargarEventos() {
   }
 }
 
+/** Botón 'Crear incidente' de una fila de Eventos. */
 async function crearIncidenteDesdeEvento(idEvento) {
   try {
     const inc = await api(`/incidents/from-event/${idEvento}`, {
@@ -389,6 +398,7 @@ function tarjetaIncidente(i) {
     </article>`;
 }
 
+/** Pestaña Incidentes: lista los incidentes según el filtro de estado. */
 async function cargarIncidentes() {
   const estado = $("#filtro-estado").value;
   try {
@@ -403,6 +413,7 @@ async function cargarIncidentes() {
   }
 }
 
+/** Botones Asignar / Iniciar trabajo / Cerrar de un incidente. */
 async function accionIncidente(accion, id) {
   let cambios;
   if (accion === "asignar") {
@@ -430,6 +441,7 @@ async function accionIncidente(accion, id) {
   }
 }
 
+/** Formulario '+ Nuevo incidente manual'. */
 async function crearIncidenteManual(evento) {
   evento.preventDefault();
   const form = evento.target;
@@ -470,6 +482,7 @@ async function cargarEquipos() {
   });
 }
 
+/** Pestaña Inventario: tabla de equipos con sus botones Editar, Eliminar y Puertos. */
 async function cargarInventario() {
   try {
     await cargarEquipos();
@@ -500,6 +513,7 @@ async function cargarInventario() {
   }
 }
 
+/** Carga los datos de un equipo en el formulario para editarlo. */
 function editarEquipo(id) {
   const d = equipos.find((e) => e.id === id);
   if (!d) return;
@@ -521,6 +535,7 @@ function editarEquipo(id) {
   form.scrollIntoView({ behavior: "smooth" });
 }
 
+/** Deja el formulario de equipos listo para agregar uno nuevo. */
 function limpiarFormEquipo() {
   const form = $("#form-equipo");
   form.reset();
@@ -528,6 +543,7 @@ function limpiarFormEquipo() {
   $("#titulo-form-equipo").textContent = "Agregar equipo";
 }
 
+/** Guarda el equipo del formulario (crea uno nuevo o edita el existente). */
 async function guardarEquipo(evento) {
   evento.preventDefault();
   const f = new FormData(evento.target);
@@ -563,6 +579,7 @@ async function guardarEquipo(evento) {
   }
 }
 
+/** Elimina un equipo después de confirmar (el servidor protege los que tienen historia). */
 async function eliminarEquipo(id) {
   const d = equipos.find((e) => e.id === id);
   if (
@@ -590,6 +607,7 @@ const CARGADORES = {
   inventario: cargarInventario,
 };
 
+/** Llena las listas de severidad (0 a 7) de los formularios y filtros. */
 function llenarSelectsSeveridad() {
   document.querySelectorAll(".select-severidad").forEach((select) => {
     const tieneOpcionVacia = select.options.length > 0; // "Todas"
@@ -602,6 +620,7 @@ function llenarSelectsSeveridad() {
   });
 }
 
+/** Conecta los botones y formularios de la página con sus funciones (pestañas, filtros, formularios). */
 function conectarEventos() {
   document
     .querySelectorAll(".pestana")
@@ -639,6 +658,7 @@ function conectarEventos() {
   });
 }
 
+/** Arranque del dashboard: prepara los formularios, carga los equipos y abre la pestaña de la URL. */
 async function iniciar() {
   llenarSelectsSeveridad();
   conectarEventos();
@@ -658,6 +678,9 @@ document.addEventListener("DOMContentLoaded", iniciar);
 // v1.0.0: recalcular el límite de fechas cada vez que se abre el calendario
 document.addEventListener("DOMContentLoaded", () => {
   ["desde", "hasta"].forEach((campo) =>
-    $("#filtros-eventos").elements[campo].addEventListener("focus", limitarFechasEventos),
+    $("#filtros-eventos").elements[campo].addEventListener(
+      "focus",
+      limitarFechasEventos,
+    ),
   );
 });

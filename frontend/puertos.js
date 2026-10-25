@@ -17,11 +17,13 @@ const NOMBRE_ESTADO_PUERTO = {
   desconocido: "Desconocido",
 };
 
+/** Etiqueta de color con el estado del puerto (Conectado, Sin enlace, Apagado...). */
 function insigniaPuerto(estado) {
   const e = estado || "desconocido";
   return `<span class="estado-puerto ${esc(e)}">${esc(NOMBRE_ESTADO_PUERTO[e] || e)}</span>`;
 }
 
+/** Abre la ventana de puertos con un título y su contenido. */
 function abrirDialogoPuerto(titulo, html) {
   $("#dialogo-puerto-titulo").textContent = titulo;
   $("#dialogo-puerto-cuerpo").innerHTML = html; // todo dato ya pasó por esc()
@@ -29,6 +31,7 @@ function abrirDialogoPuerto(titulo, html) {
   if (!d.open) d.showModal();
 }
 
+/** Ficha HTML segura de un puerto: estado, VLAN, descripción, vecino, MAC y origen del dato. */
 function fichaPuerto(p) {
   const fila = (etiqueta, valor) =>
     `<div class="ficha-fila"><span>${etiqueta}</span><strong>${valor}</strong></div>`;
@@ -112,6 +115,7 @@ async function verPuertosEquipo(idEquipo) {
   }
 }
 
+/** Botón 'Actualizar puertos' (en equipos reales se leen por la consola; puede tardar hasta 1 minuto). */
 async function actualizarPuertos(idEquipo, boton) {
   boton.disabled = true;
   boton.textContent = "Leyendo puertos...";

@@ -2,6 +2,20 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es/).
 
+## [1.0.1] - 2026-10-24 — Calidad de código
+
+- **Formato uniforme**: Python con `ruff format` (PEP 8, líneas de 110) y JavaScript, CSS y HTML con Prettier.
+  Reglas guardadas en `pyproject.toml` y `.editorconfig` (4 espacios en Python, 2 en web, sin tabulaciones).
+- **Análisis estático sin avisos**: `ruff check backend` → 0 problemas (antes 292). Se corrigieron una
+  importación repetida, una sin usar, variables de una letra ambiguas y excepciones sin `from`.
+- **Documentación del código**: 315 de 315 funciones y clases de Python con su descripción (antes 91 de 258)
+  y las 64 funciones de JavaScript con un comentario de lo que hacen.
+- **Funciones más simples**: `ejecutar_real` (consola) y `hallazgos_de` (auditor) se dividieron en partes
+  pequeñas y con nombre propio; ninguna función queda en complejidad alta.
+- `models.py`: las tablas de la Fase 12 usan el mismo estilo tipado (`Mapped`) que el resto.
+- `styles.css`: se quitaron dos líneas duplicadas que dejaban una llave `}` de más.
+- Sin cambios de funcionamiento: 31/31 pruebas automáticas OK y las 8 pestañas cargan sin errores.
+
 ## [1.0.0] - 2026-10-24 — Herramienta madura y marcha blanca
 
 ### Fase 12 — Agente auditor de usuarios con Hermes Agent

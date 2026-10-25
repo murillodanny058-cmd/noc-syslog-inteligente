@@ -12,18 +12,43 @@ de 'reload' en el nombre de la interfaz.
 AVISO: la sintaxis puede variar según la versión del sistema operativo de cada
 equipo. Revise siempre con la documentación oficial antes de aplicar.
 """
+
 import ipaddress
 
 from .syslog_parser import SEVERIDADES
 
 # Nombre de cada nivel de severidad (0 a 7) en el idioma de cada fabricante
 NIVELES = {
-    "Cisco": ["emergencies", "alerts", "critical", "errors",
-              "warnings", "notifications", "informational", "debugging"],
-    "Fortinet": ["emergency", "alert", "critical", "error",
-                 "warning", "notification", "information", "debug"],
-    "Huawei": ["emergencies", "alert", "critical", "error",
-               "warning", "notification", "informational", "debugging"],
+    "Cisco": [
+        "emergencies",
+        "alerts",
+        "critical",
+        "errors",
+        "warnings",
+        "notifications",
+        "informational",
+        "debugging",
+    ],
+    "Fortinet": [
+        "emergency",
+        "alert",
+        "critical",
+        "error",
+        "warning",
+        "notification",
+        "information",
+        "debug",
+    ],
+    "Huawei": [
+        "emergencies",
+        "alert",
+        "critical",
+        "error",
+        "warning",
+        "notification",
+        "informational",
+        "debugging",
+    ],
 }
 
 INTERFAZ_POR_DEFECTO = {"Cisco": "Loopback0", "Fortinet": "port1", "Huawei": "LoopBack0"}
@@ -34,8 +59,10 @@ VERIFICACION = {
     "Huawei": ["display info-center", "display clock", "display current-configuration | include info-center"],
 }
 
-AVISO_VERSION = ("La sintaxis puede variar según la versión del sistema operativo. "
-                 "Verifique con la documentación oficial del fabricante antes de aplicar.")
+AVISO_VERSION = (
+    "La sintaxis puede variar según la versión del sistema operativo. "
+    "Verifique con la documentación oficial del fabricante antes de aplicar."
+)
 
 
 def _advertencias(p) -> list[str]:
@@ -44,16 +71,22 @@ def _advertencias(p) -> list[str]:
     if not ipaddress.ip_address(p.servidor_ip).is_private:
         avisos.append("La IP del servidor NOC parece pública: los logs viajarían por internet sin cifrar.")
     if p.protocolo == "udp":
-        avisos.append("UDP no garantiza la entrega ni cifra los mensajes. "
-                      "En producción considere TCP con TLS (RFC 5425).")
+        avisos.append(
+            "UDP no garantiza la entrega ni cifra los mensajes. "
+            "En producción considere TCP con TLS (RFC 5425)."
+        )
     if p.severidad_minima == 7:
         avisos.append("El nivel 7 (Debug) genera muchísimo tráfico y puede saturar el NOC.")
     if p.severidad_minima <= 2:
-        avisos.append(f"Con el nivel {p.severidad_minima} solo se enviarán eventos muy graves: "
-                      "se perderán errores y advertencias.")
+        avisos.append(
+            f"Con el nivel {p.severidad_minima} solo se enviarán eventos muy graves: "
+            "se perderán errores y advertencias."
+        )
     if not p.ntp_servidor:
-        avisos.append("Sin servidor NTP las fechas de los logs pueden ser incorrectas "
-                      "(en Cisco aparece un '*' antes de la hora).")
+        avisos.append(
+            "Sin servidor NTP las fechas de los logs pueden ser incorrectas "
+            "(en Cisco aparece un '*' antes de la hora)."
+        )
     if p.puerto != 514:
         avisos.append(f"Puerto {p.puerto}: el receptor del NOC debe escuchar en ese mismo puerto.")
     avisos.append(AVISO_VERSION)
@@ -61,6 +94,7 @@ def _advertencias(p) -> list[str]:
 
 
 def _cisco(p, nombre, interfaz):
+    """Genera la configuración Syslog comentada para Cisco IOS."""
     nivel = NIVELES["Cisco"][p.severidad_minima]
     lineas = [
         "! =====================================================================",
@@ -110,6 +144,7 @@ def _cisco(p, nombre, interfaz):
 
 
 def _fortinet(p, nombre, interfaz):
+    """Genera la configuración Syslog comentada para Fortinet FortiOS."""
     nivel = NIVELES["Fortinet"][p.severidad_minima]
     modo = "udp" if p.protocolo == "udp" else "reliable"
     lineas = [
@@ -163,6 +198,7 @@ def _fortinet(p, nombre, interfaz):
 
 
 def _huawei(p, nombre, interfaz):
+    """Genera la configuración Syslog comentada para Huawei VRP."""
     nivel = NIVELES["Huawei"][p.severidad_minima]
     signo = "minus" if p.desfase_horas < 0 else "add"
     lineas = [
@@ -189,8 +225,7 @@ def _huawei(p, nombre, interfaz):
         f"info-center loghost source {interfaz}",
         "#",
         f"# 4) Servidor Syslog del NOC ({p.protocolo.upper()}, puerto {p.puerto})",
-        f"info-center loghost {p.servidor_ip} facility {p.facility} "
-        f"port {p.puerto} transport {p.protocolo}",
+        f"info-center loghost {p.servidor_ip} facility {p.facility} port {p.puerto} transport {p.protocolo}",
         "#",
         f"# 5) Nivel mínimo: {p.severidad_minima} ({SEVERIDADES[p.severidad_minima]}) "
         f"-> se envían los niveles 0 a {p.severidad_minima}",
@@ -217,5 +252,6 @@ def generar(p) -> dict:
         "advertencias": _advertencias(p),
         "verificacion": VERIFICACION[p.vendor],
     }
+
 
 # --- FIN DEL ARCHIVO ---

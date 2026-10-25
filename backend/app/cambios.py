@@ -19,6 +19,7 @@ SEGURIDAD:
     el NOC NUNCA guarda en la memoria del equipo (write memory / save).
     Si algo sale mal, un reinicio del equipo también lo deshace.
 """
+
 import ipaddress
 import json
 import re
@@ -27,9 +28,11 @@ from .consola_serial import CONSOLA
 from .puertos import RE_INTERFAZ, extraer_interfaz, nombre_corto
 
 NIVELES = {"errors": 3, "warnings": 4, "notifications": 5, "informational": 6}
-RE_TEXTO = re.compile(r"^[A-Za-z0-9 _.\-]{1,60}$")   # descripciones: sin símbolos raros
-RE_ERROR_EQUIPO = re.compile(r"%\s*(invalid|incomplete|ambiguous|unknown)|^\s*error:|unrecognized command",
-                             re.IGNORECASE | re.MULTILINE)
+RE_TEXTO = re.compile(r"^[A-Za-z0-9 _.\-]{1,60}$")  # descripciones: sin símbolos raros
+RE_ERROR_EQUIPO = re.compile(
+    r"%\s*(invalid|incomplete|ambiguous|unknown)|^\s*error:|unrecognized command",
+    re.IGNORECASE | re.MULTILINE,
+)
 
 
 class CambioInvalido(ValueError):
@@ -40,6 +43,7 @@ class CambioInvalido(ValueError):
 # Validaciones de los parámetros
 # ---------------------------------------------------------------------------
 def _ip(valor) -> str:
+    """Valida la IP del servidor Syslog: IPv4 real, no loopback (127.x), multicast ni 0.0.0.0."""
     try:
         ip = ipaddress.IPv4Address(str(valor).strip())
     except ValueError:
@@ -50,6 +54,7 @@ def _ip(valor) -> str:
 
 
 def _puerto_udp(valor) -> int:
+    """Valida el puerto UDP (1 a 65535)."""
     try:
         n = int(valor)
     except (TypeError, ValueError):
@@ -60,6 +65,7 @@ def _puerto_udp(valor) -> int:
 
 
 def _interfaz(valor) -> str:
+    """Valida el nombre de una interfaz (ej. Fa0/1) y lo devuelve en forma larga (FastEthernet0/1)."""
     texto = str(valor or "").strip()
     if not RE_INTERFAZ.fullmatch(texto):
         raise CambioInvalido("Interfaz no válida. Ejemplos: Fa0/1, Gi1/0/5, GigabitEthernet0/0/1")
@@ -67,10 +73,13 @@ def _interfaz(valor) -> str:
 
 
 def _texto(valor) -> str:
+    """Valida una descripción: solo letras, números, espacio, punto y guiones (evita inyectar comandos)."""
     texto = str(valor or "").strip()
     if not RE_TEXTO.fullmatch(texto):
-        raise CambioInvalido("La descripción solo admite letras, números, espacio, punto, guion y "
-                             "guion bajo (máximo 60 caracteres)")
+        raise CambioInvalido(
+            "La descripción solo admite letras, números, espacio, punto, guion y "
+            "guion bajo (máximo 60 caracteres)"
+        )
     return texto
 
 
@@ -79,37 +88,50 @@ def _texto(valor) -> str:
 # Cada plantilla devuelve: comandos, rollback, respaldo, verificación y texto esperado.
 # ---------------------------------------------------------------------------
 def _syslog(vendor, p):
+    """Plantilla 'Enviar logs al NOC': comandos, rollback, respaldo y verificación para Cisco o Huawei."""
     ip, puerto = _ip(p.get("ip")), _puerto_udp(p.get("puerto", 5514))
     nivel = p.get("nivel", "informational")
     if nivel not in NIVELES:
         raise CambioInvalido(f"Nivel no válido. Use: {', '.join(NIVELES)}")
     if vendor == "Huawei":
-        return {"comandos": [f"info-center loghost {ip}", "info-center enable"],
-                "rollback": [f"undo info-center loghost {ip}"],
-                "respaldo": ["display info-center"],
-                "verificacion": "display info-center", "esperado": ip,
-                "resumen": f"Enviar los logs al NOC {ip}"}
-    return {"comandos": [f"logging host {ip} transport udp port {puerto}", f"logging trap {nivel}"],
-            "rollback": [f"no logging host {ip}"],
-            "respaldo": ["show logging"],
-            "verificacion": "show logging", "esperado": ip,
-            "resumen": f"Enviar los logs al NOC {ip}:{puerto} (nivel {nivel})"}
+        return {
+            "comandos": [f"info-center loghost {ip}", "info-center enable"],
+            "rollback": [f"undo info-center loghost {ip}"],
+            "respaldo": ["display info-center"],
+            "verificacion": "display info-center",
+            "esperado": ip,
+            "resumen": f"Enviar los logs al NOC {ip}",
+        }
+    return {
+        "comandos": [f"logging host {ip} transport udp port {puerto}", f"logging trap {nivel}"],
+        "rollback": [f"no logging host {ip}"],
+        "respaldo": ["show logging"],
+        "verificacion": "show logging",
+        "esperado": ip,
+        "resumen": f"Enviar los logs al NOC {ip}:{puerto} (nivel {nivel})",
+    }
 
 
 def _descripcion(vendor, p):
+    """Plantilla 'Descripción de un puerto': pone o quita la descripción de una interfaz."""
     interfaz, texto = _interfaz(p.get("interfaz")), _texto(p.get("descripcion"))
     quitar = "undo description" if vendor == "Huawei" else "no description"
     if vendor == "Huawei":
         respaldo, verificacion = ["display interface description"], "display interface description"
     else:
         respaldo, verificacion = ["show interfaces status"], "show interfaces status"
-    return {"comandos": [f"interface {interfaz}", f"description {texto}"],
-            "rollback": [f"interface {interfaz}", quitar],
-            "respaldo": respaldo, "verificacion": verificacion, "esperado": texto[:15],
-            "resumen": f"Describir {nombre_corto(interfaz)} como '{texto}'"}
+    return {
+        "comandos": [f"interface {interfaz}", f"description {texto}"],
+        "rollback": [f"interface {interfaz}", quitar],
+        "respaldo": respaldo,
+        "verificacion": verificacion,
+        "esperado": texto[:15],
+        "resumen": f"Describir {nombre_corto(interfaz)} como '{texto}'",
+    }
 
 
 def _estado_puerto(vendor, p):
+    """Plantilla 'Apagar / encender un puerto' (shutdown / no shutdown) con su comando inverso."""
     interfaz = _interfaz(p.get("interfaz"))
     accion = p.get("accion")
     if accion not in ("apagar", "encender"):
@@ -123,20 +145,33 @@ def _estado_puerto(vendor, p):
     else:
         respaldo, verificacion = ["show interfaces status"], "show interfaces status"
         esperado = "disabled" if accion == "apagar" else ""
-    return {"comandos": [f"interface {interfaz}", comando],
-            "rollback": [f"interface {interfaz}", inverso],
-            "respaldo": respaldo, "verificacion": verificacion, "esperado": esperado,
-            "linea_verificar": nombre_corto(interfaz) if vendor != "Huawei" else interfaz,
-            "resumen": f"{accion.capitalize()} el puerto {nombre_corto(interfaz)}"}
+    return {
+        "comandos": [f"interface {interfaz}", comando],
+        "rollback": [f"interface {interfaz}", inverso],
+        "respaldo": respaldo,
+        "verificacion": verificacion,
+        "esperado": esperado,
+        "linea_verificar": nombre_corto(interfaz) if vendor != "Huawei" else interfaz,
+        "resumen": f"{accion.capitalize()} el puerto {nombre_corto(interfaz)}",
+    }
 
 
 PLANTILLAS = {
-    "syslog_servidor": {"nombre": "Configurar envío de logs al NOC", "funcion": _syslog,
-                        "parametros": ["ip", "puerto", "nivel"]},
-    "descripcion_puerto": {"nombre": "Poner descripción a un puerto", "funcion": _descripcion,
-                           "parametros": ["interfaz", "descripcion"]},
-    "estado_puerto": {"nombre": "Apagar o encender un puerto", "funcion": _estado_puerto,
-                      "parametros": ["interfaz", "accion"]},
+    "syslog_servidor": {
+        "nombre": "Configurar envío de logs al NOC",
+        "funcion": _syslog,
+        "parametros": ["ip", "puerto", "nivel"],
+    },
+    "descripcion_puerto": {
+        "nombre": "Poner descripción a un puerto",
+        "funcion": _descripcion,
+        "parametros": ["interfaz", "descripcion"],
+    },
+    "estado_puerto": {
+        "nombre": "Apagar o encender un puerto",
+        "funcion": _estado_puerto,
+        "parametros": ["interfaz", "accion"],
+    },
 }
 
 
@@ -147,14 +182,17 @@ def generar(plantilla: str, vendor: str, parametros: dict) -> dict:
     if vendor not in ("Cisco", "Huawei"):
         raise CambioInvalido("Los cambios por consola están disponibles para Cisco y Huawei")
     datos = PLANTILLAS[plantilla]["funcion"](vendor, parametros or {})
-    datos["parametros"] = {k: parametros.get(k) for k in PLANTILLAS[plantilla]["parametros"]
-                           if parametros.get(k) not in (None, "")}
+    datos["parametros"] = {
+        k: parametros.get(k)
+        for k in PLANTILLAS[plantilla]["parametros"]
+        if parametros.get(k) not in (None, "")
+    }
     return datos
 
 
 def catalogo() -> list:
-    return [{"clave": k, "nombre": v["nombre"], "parametros": v["parametros"]}
-            for k, v in PLANTILLAS.items()]
+    """Lista de plantillas permitidas con sus parámetros (lo único que se puede proponer)."""
+    return [{"clave": k, "nombre": v["nombre"], "parametros": v["parametros"]} for k, v in PLANTILLAS.items()]
 
 
 # ---------------------------------------------------------------------------
@@ -205,8 +243,11 @@ def verificar_salida(datos: dict, salida: str) -> bool:
     esperado = datos.get("esperado", "")
     linea_clave = datos.get("linea_verificar")
     if linea_clave:  # apagar/encender: se revisa SOLO la línea de ese puerto
-        lineas = [l for l in salida.splitlines()
-                  if l.split() and l.split()[0].lower() == linea_clave.lower()]  # Fa0/1 ≠ Fa0/10
+        lineas = [
+            linea
+            for linea in salida.splitlines()
+            if linea.split() and linea.split()[0].lower() == linea_clave.lower()
+        ]  # Fa0/1 ≠ Fa0/10
         if not lineas:
             return False
         if esperado:
@@ -216,10 +257,13 @@ def verificar_salida(datos: dict, salida: str) -> bool:
 
 
 def a_texto(lista: list) -> str:
+    """Une una lista de comandos en un texto, uno por línea."""
     return "\n".join(lista)
 
 
 def a_json(d: dict) -> str:
+    """Convierte un diccionario a JSON conservando las tildes."""
     return json.dumps(d, ensure_ascii=False)
+
 
 # --- FIN DEL ARCHIVO ---

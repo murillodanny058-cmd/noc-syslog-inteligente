@@ -16,6 +16,7 @@ SEGURIDAD:
   - No se respaldan las sesiones abiertas (user_sessions): tras recuperar, cada usuario
     vuelve a iniciar sesión.
 """
+
 import json
 import sys
 from datetime import date, datetime
@@ -32,18 +33,21 @@ CARPETA = DATA_DIR / "respaldos"
 
 
 def _a_json(valor):
+    """Convierte fechas a un formato que JSON pueda guardar."""
     if isinstance(valor, (datetime, date)):
         return {"__fecha__": valor.isoformat()}
     return valor
 
 
 def _de_json(valor):
+    """Recupera las fechas guardadas en el respaldo."""
     if isinstance(valor, dict) and "__fecha__" in valor:
         return datetime.fromisoformat(valor["__fecha__"])
     return valor
 
 
 def exportar() -> Path:
+    """Copia todas las tablas (menos las sesiones) a data/respaldos/noc_FECHA.json."""
     CARPETA.mkdir(parents=True, exist_ok=True)
     marca = datetime.now().strftime("%Y%m%d_%H%M%S")
     datos = {"creado": datetime.now().isoformat(), "motor_origen": MOTOR, "tablas": {}}
@@ -63,6 +67,7 @@ def exportar() -> Path:
 
 
 def restaurar(ruta: str) -> bool:
+    """Carga un respaldo en una base SQLite NUEVA y compara las filas de cada tabla."""
     archivo = Path(ruta)
     datos = json.loads(archivo.read_text(encoding="utf-8"))
     marca = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -87,8 +92,11 @@ def restaurar(ruta: str) -> bool:
             ok &= esperado == obtenido
             print(f"     {tabla.name:<22} {esperado:>9} {obtenido:>11}  {estado}")
     motor.dispose()
-    print("[OK] Recuperación verificada: todas las tablas coinciden." if ok
-          else "[ERROR] Hay tablas que no coinciden.")
+    print(
+        "[OK] Recuperación verificada: todas las tablas coinciden."
+        if ok
+        else "[ERROR] Hay tablas que no coinciden."
+    )
     return ok
 
 

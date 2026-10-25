@@ -20,12 +20,13 @@ Este módulo también lo reutiliza la consola serial real (consola_serial.py),
 que importa ALIAS, BLOQUEADOS, CARACTERES_PROHIBIDOS y PATRON_FILTRO para
 aplicar exactamente la misma política.
 """
+
 # ---------------------------------------------------------------------------
 # Importaciones
 # ---------------------------------------------------------------------------
 import re
-from datetime import datetime, timezone
-from typing import Callable, Optional
+from collections.abc import Callable
+from datetime import UTC, datetime
 
 from sqlalchemy.orm import Session
 
@@ -45,8 +46,8 @@ from .syslog_parser import SEVERIDADES
 # Constantes generales
 # ---------------------------------------------------------------------------
 # Direcciones de documentación (RFC 5737): nunca apuntan a equipos reales.
-SERVIDOR_NOC_SIM = "192.0.2.100"   # servidor NOC simulado
-NTP_SIM = "192.0.2.123"            # servidor NTP simulado
+SERVIDOR_NOC_SIM = "192.0.2.100"  # servidor NOC simulado
+NTP_SIM = "192.0.2.123"  # servidor NTP simulado
 
 # Valores que se usan para identificar al actor en la auditoría.
 ACTOR_IA = "agente_ia"
@@ -83,54 +84,86 @@ PATRON_FILTRO = re.compile(r"(.+?)\s*\|\s*(?:include|inc|i)\s+([\w./:-]+)")
 # No son la barrera de seguridad (esa es "denegar por defecto"): sirven para
 # EXPLICAR al usuario por qué su comando se rechaza.
 BLOQUEADOS: list[tuple[str, str, str]] = [
-    (r"^(conf|config|configure)\b",
-     "configure terminal, conf t, config system",
-     "Entrar a modo configuración está prohibido: la consola es de solo lectura."),
-    (r"^system-view\b",
-     "system-view",
-     "system-view abre el modo configuración de Huawei: prohibido en solo lectura."),
-    (r"^(write|wr|copy|save)\b",
-     "write memory, copy run start, save",
-     "Guardar o copiar configuraciones modifica el equipo."),
-    (r"^(erase|delete|del|format|rmdir)\b",
-     "write erase, erase startup-config, delete flash:",
-     "Comando destructivo: borraría archivos o la configuración."),
-    (r"^(reload|reboot|reset|restart)\b",
-     "reload, reboot",
-     "Reiniciar el equipo cortaría el servicio de la red."),
-    (r"^execute\b",
-     "execute reboot, execute factoryreset",
-     "En FortiOS, 'execute' realiza acciones: reinicio, restauración de fábrica o respaldos."),
-    (r"^(clear|purge)\b",
-     "clear logging, clear counters",
-     "Borraría logs o contadores: sería destruir evidencia."),
-    (r"^(debug|undebug|diagnose|diag)\b",
-     "debug all, diagnose debug",
-     "La depuración puede saturar la CPU del equipo."),
-    (r"^(shutdown|no|undo)\b",
-     "shutdown, no logging, undo info-center",
-     "Apagar interfaces o negar comandos modifica la configuración."),
-    (r"^(set|unset|edit|end|next|append)\b",
-     "set, edit, end",
-     "Comandos de edición de FortiOS: prohibidos en solo lectura."),
-    (r"^(ssh|telnet|connect)\b",
-     "ssh, telnet",
-     "Saltar desde la consola a otro equipo no está permitido."),
-    (r"^(enable|username|password|secret|crypto)\b",
-     "enable, username admin",
-     "Cambiar privilegios o credenciales no está permitido."),
+    (
+        r"^(conf|config|configure)\b",
+        "configure terminal, conf t, config system",
+        "Entrar a modo configuración está prohibido: la consola es de solo lectura.",
+    ),
+    (
+        r"^system-view\b",
+        "system-view",
+        "system-view abre el modo configuración de Huawei: prohibido en solo lectura.",
+    ),
+    (
+        r"^(write|wr|copy|save)\b",
+        "write memory, copy run start, save",
+        "Guardar o copiar configuraciones modifica el equipo.",
+    ),
+    (
+        r"^(erase|delete|del|format|rmdir)\b",
+        "write erase, erase startup-config, delete flash:",
+        "Comando destructivo: borraría archivos o la configuración.",
+    ),
+    (
+        r"^(reload|reboot|reset|restart)\b",
+        "reload, reboot",
+        "Reiniciar el equipo cortaría el servicio de la red.",
+    ),
+    (
+        r"^execute\b",
+        "execute reboot, execute factoryreset",
+        "En FortiOS, 'execute' realiza acciones: reinicio, restauración de fábrica o respaldos.",
+    ),
+    (
+        r"^(clear|purge)\b",
+        "clear logging, clear counters",
+        "Borraría logs o contadores: sería destruir evidencia.",
+    ),
+    (
+        r"^(debug|undebug|diagnose|diag)\b",
+        "debug all, diagnose debug",
+        "La depuración puede saturar la CPU del equipo.",
+    ),
+    (
+        r"^(shutdown|no|undo)\b",
+        "shutdown, no logging, undo info-center",
+        "Apagar interfaces o negar comandos modifica la configuración.",
+    ),
+    (
+        r"^(set|unset|edit|end|next|append)\b",
+        "set, edit, end",
+        "Comandos de edición de FortiOS: prohibidos en solo lectura.",
+    ),
+    (r"^(ssh|telnet|connect)\b", "ssh, telnet", "Saltar desde la consola a otro equipo no está permitido."),
+    (
+        r"^(enable|username|password|secret|crypto)\b",
+        "enable, username admin",
+        "Cambiar privilegios o credenciales no está permitido.",
+    ),
 ]
 
 # Abreviaturas comunes que usan los administradores, por marca.
 # Se expanden palabra por palabra antes de buscar en la lista permitida.
 ALIAS: dict[str, dict[str, str]] = {
     "Cisco": {
-        "sh": "show", "run": "running-config", "log": "logging", "ver": "version",
-        "int": "interface", "br": "brief", "clo": "clock", "?": "help",
+        "sh": "show",
+        "run": "running-config",
+        "log": "logging",
+        "ver": "version",
+        "int": "interface",
+        "br": "brief",
+        "clo": "clock",
+        "?": "help",
     },
     "Huawei": {
-        "dis": "display", "disp": "display", "cur": "current-configuration",
-        "ver": "version", "int": "interface", "br": "brief", "clo": "clock", "?": "help",
+        "dis": "display",
+        "disp": "display",
+        "cur": "current-configuration",
+        "ver": "version",
+        "int": "interface",
+        "br": "brief",
+        "clo": "clock",
+        "?": "help",
     },
     "Fortinet": {
         "?": "help",
@@ -152,7 +185,7 @@ PROMPT_POR_DEFECTO = "{n}>"
 # ---------------------------------------------------------------------------
 def _ahora() -> datetime:
     """Fecha y hora actual en UTC."""
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def _version(db: Session, eq: Device) -> str:
@@ -226,17 +259,18 @@ def _configuracion(db: Session, eq: Device) -> str:
     """Configuración 'actual' del equipo: la arma el propio generador, sin sus comentarios."""
     # model_validate valida igual que ConfigRequest(...) y completa los valores
     # por defecto (puerto, severidad, zona horaria...) sin que el editor los exija.
-    datos = generar(ConfigRequest.model_validate({
-        "vendor": eq.vendor,
-        "nombre_equipo": eq.name,
-        "servidor_ip": SERVIDOR_NOC_SIM,
-        "ntp_servidor": NTP_SIM,
-    }))
+    datos = generar(
+        ConfigRequest.model_validate(
+            {
+                "vendor": eq.vendor,
+                "nombre_equipo": eq.name,
+                "servidor_ip": SERVIDOR_NOC_SIM,
+                "ntp_servidor": NTP_SIM,
+            }
+        )
+    )
     # Se quitan las líneas de comentario del generador ("! " en Cisco/Huawei, "# " en Fortinet)
-    lineas = [
-        linea for linea in datos["configuracion"].splitlines()
-        if not linea.startswith(("! ", "# "))
-    ]
+    lineas = [linea for linea in datos["configuracion"].splitlines() if not linea.startswith(("! ", "# "))]
     return f"! Configuración simulada de {eq.name}\n" + "\n".join(lineas)
 
 
@@ -335,21 +369,22 @@ PERMITIDOS: dict[str, dict[str, Respuesta]] = {
 # ---------------------------------------------------------------------------
 # Ejecución con política y auditoría
 # ---------------------------------------------------------------------------
-def _auditar(db: Session, eq: Device, comando: str, actor: str,
-             permitido: bool, motivo: Optional[str]) -> None:
+def _auditar(db: Session, eq: Device, comando: str, actor: str, permitido: bool, motivo: str | None) -> None:
     """Registra el intento en la auditoría (permitido o rechazado)."""
     detalle = f"{eq.name}> {comando[:MAX_COMANDO_AUDITORIA]}"
     if not permitido:
         detalle += f" | RECHAZADO: {motivo}"
 
-    db.add(AuditLog(
-        # Cualquier actor que no sea el agente de IA se registra como operador local
-        actor=ACTOR_IA if actor == ACTOR_IA else ACTOR_OPERADOR,
-        action="CONSOLE_CMD" if permitido else "CONSOLE_BLOCKED",
-        entity_type="devices",
-        entity_id=eq.id,
-        details=detalle[:MAX_DETALLE_AUDITORIA],
-    ))
+    db.add(
+        AuditLog(
+            # Cualquier actor que no sea el agente de IA se registra como operador local
+            actor=ACTOR_IA if actor == ACTOR_IA else ACTOR_OPERADOR,
+            action="CONSOLE_CMD" if permitido else "CONSOLE_BLOCKED",
+            entity_type="devices",
+            entity_id=eq.id,
+            details=detalle[:MAX_DETALLE_AUDITORIA],
+        )
+    )
     db.commit()
 
 
@@ -357,17 +392,19 @@ def _avisar_si_se_suspende(db: Session, eq: Device, comando: str) -> None:
     """Fase 8: notifica en el momento exacto en que el agente de IA queda suspendido."""
     if bloqueos_recientes_agente(db) != MAX_BLOQUEOS:
         return
-    encolar({
-        "clave": "agente_suspendido",
-        "tipo": "agente_suspendido",
-        "severidad": 1,
-        "siempre": True,
-        "titulo": "Agente de IA SUSPENDIDO",
-        "detalle": (
-            f"Acumuló {MAX_BLOQUEOS} comandos bloqueados. Último intento en "
-            f"{eq.name}: {comando[:MAX_COMANDO_NOTIFICACION]}. Requiere revisión humana."
-        ),
-    })
+    encolar(
+        {
+            "clave": "agente_suspendido",
+            "tipo": "agente_suspendido",
+            "severidad": 1,
+            "siempre": True,
+            "titulo": "Agente de IA SUSPENDIDO",
+            "detalle": (
+                f"Acumuló {MAX_BLOQUEOS} comandos bloqueados. Último intento en "
+                f"{eq.name}: {comando[:MAX_COMANDO_NOTIFICACION]}. Requiere revisión humana."
+            ),
+        }
+    )
 
 
 def ejecutar(db: Session, eq: Device, comando_original: str, actor: str) -> dict:
@@ -388,7 +425,7 @@ def ejecutar(db: Session, eq: Device, comando_original: str, actor: str) -> dict
     comando = " ".join(comando_original.strip().split())
     prompt = PROMPTS.get(eq.vendor, PROMPT_POR_DEFECTO).format(n=eq.name)
 
-    def responder(categoria: str, salida: str = "", motivo: Optional[str] = None) -> dict:
+    def responder(categoria: str, salida: str = "", motivo: str | None = None) -> dict:
         """Audita el intento, avisa si corresponde y arma la respuesta."""
         permitido = categoria == "permitido"
         _auditar(db, eq, comando, actor, permitido, motivo)
@@ -412,7 +449,7 @@ def ejecutar(db: Session, eq: Device, comando_original: str, actor: str) -> dict
         return responder(
             "no_permitido",
             motivo=f"La consola solo está disponible para {', '.join(MARCAS_SOPORTADAS[:-1])} "
-                   f"y {MARCAS_SOPORTADAS[-1]}.",
+            f"y {MARCAS_SOPORTADAS[-1]}.",
         )
 
     # 1. Caracteres prohibidos (encadenar o redirigir comandos).
@@ -421,13 +458,13 @@ def ejecutar(db: Session, eq: Device, comando_original: str, actor: str) -> dict
         return responder(
             "invalido",
             motivo="Caracteres no permitidos (; & ` $ < > \\ ||): "
-                   "no se puede encadenar ni redirigir comandos.",
+            "no se puede encadenar ni redirigir comandos.",
         )
 
     texto = comando.lower()
 
     # 2. Filtro "| include <palabra>": se separa el comando de la palabra a buscar
-    filtro: Optional[str] = None
+    filtro: str | None = None
     if "|" in texto:
         coincidencia = PATRON_FILTRO.fullmatch(texto)
         if not coincidencia:
@@ -451,8 +488,7 @@ def ejecutar(db: Session, eq: Device, comando_original: str, actor: str) -> dict
     if funcion is None:
         return responder(
             "no_permitido",
-            motivo=f"'{comando}' no está en la lista de comandos permitidos. "
-                   "Escriba 'help' para verlos.",
+            motivo=f"'{comando}' no está en la lista de comandos permitidos. Escriba 'help' para verlos.",
         )
 
     # Comando permitido: se genera la salida y se aplica el filtro si lo hay
@@ -460,5 +496,6 @@ def ejecutar(db: Session, eq: Device, comando_original: str, actor: str) -> dict
     if filtro:
         salida = "\n".join(linea for linea in salida.splitlines() if filtro in linea.lower())
     return responder("permitido", salida=salida)
+
 
 # --- FIN DEL ARCHIVO ---

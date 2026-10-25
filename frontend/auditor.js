@@ -15,7 +15,12 @@ const NOMBRE_CIERRE = {
   activa: "Sesión activa",
   sin_acceso: "No logró entrar",
 };
-const NOMBRE_MOTOR = { hermes: "IA · Hermes Agent", claude: "IA · Claude", gemini: "IA · Gemini", reglas: "Reglas (sin IA)" };
+const NOMBRE_MOTOR = {
+  hermes: "IA · Hermes Agent",
+  claude: "IA · Claude",
+  gemini: "IA · Gemini",
+  reglas: "Reglas (sin IA)",
+};
 let auditorListo = false;
 
 /** datetime-local (hora local) -> ISO en UTC para la API. */
@@ -30,6 +35,7 @@ function aLocal(d) {
   return copia.toISOString().slice(0, 16);
 }
 
+/** Etiqueta de color con el nivel de riesgo (bajo, medio, alto). */
 function insigniaRiesgo(nivel) {
   return `<span class="riesgo riesgo-${esc(nivel)}">Riesgo ${esc(nivel)}</span>`;
 }
@@ -41,8 +47,10 @@ function markdownSeguro(texto) {
     .split("\n")
     .map((linea) => {
       const l = esc(linea);
-      if (/^#{1,2}\s/.test(linea)) return `<h3>${negrita(l.replace(/^#+\s*/, ""))}</h3>`;
-      if (/^#{3,}\s/.test(linea)) return `<h4>${negrita(l.replace(/^#+\s*/, ""))}</h4>`;
+      if (/^#{1,2}\s/.test(linea))
+        return `<h3>${negrita(l.replace(/^#+\s*/, ""))}</h3>`;
+      if (/^#{3,}\s/.test(linea))
+        return `<h4>${negrita(l.replace(/^#+\s*/, ""))}</h4>`;
       const item = linea.match(/^(\s*)[-*]\s+(.*)$/);
       if (item) {
         const sub = item[1].length >= 2 ? " sub" : "";
@@ -53,6 +61,7 @@ function markdownSeguro(texto) {
     .join("");
 }
 
+/** Lee el formulario del auditor: usuario y periodo (convertido a UTC). */
 function datosAuditor() {
   const f = new FormData($("#form-auditor"));
   return {
@@ -62,27 +71,37 @@ function datosAuditor() {
   };
 }
 
+/** Devuelve un mensaje de error si falta el usuario o las fechas no son válidas; null si todo está bien. */
 function validarPeriodo(d) {
   if (!d.usuario) return "Elija un usuario";
   const ahora = new Date();
-  if (d.desde && new Date(d.desde) > ahora) return "La fecha 'Desde' no puede estar en el futuro";
-  if (d.hasta && new Date(d.hasta) > ahora) return "La fecha 'Hasta' no puede estar en el futuro";
+  if (d.desde && new Date(d.desde) > ahora)
+    return "La fecha 'Desde' no puede estar en el futuro";
+  if (d.hasta && new Date(d.hasta) > ahora)
+    return "La fecha 'Hasta' no puede estar en el futuro";
   if (d.desde && d.hasta && new Date(d.desde) > new Date(d.hasta))
     return "La fecha 'Desde' no puede ser posterior a 'Hasta'";
   return null;
 }
 
+/** Tarjeta HTML segura de una sesión: inicio y fin, riesgo, hallazgos y línea de tiempo. */
 function tarjetaSesion(s, n) {
   const hallazgos = s.hallazgos.length
     ? `<ul class="lista-simple">${s.hallazgos
-        .map((h) => `<li><span class="riesgo riesgo-${esc(h.nivel)}">${esc(h.nivel)}</span> ${esc(h.texto)}</li>`)
+        .map(
+          (h) =>
+            `<li><span class="riesgo riesgo-${esc(h.nivel)}">${esc(h.nivel)}</span> ${esc(h.texto)}</li>`,
+        )
         .join("")}</ul>`
     : `<p class="nota">Sin hallazgos.</p>`;
   const linea = s.linea_de_tiempo
     .map((e) => {
       const marca =
-        e.resultado === "ok" ? "" : ` <span class="riesgo riesgo-medio">${esc(e.resultado.replace("_", " "))}</span>`;
-      const veces = e.veces > 1 ? ` <span class="tenue">×${Number(e.veces)}</span>` : "";
+        e.resultado === "ok"
+          ? ""
+          : ` <span class="riesgo riesgo-medio">${esc(e.resultado.replace("_", " "))}</span>`;
+      const veces =
+        e.veces > 1 ? ` <span class="tenue">×${Number(e.veces)}</span>` : "";
       return `<li><span class="tenue">${esc(fecha(e.hora))}</span> ${esc(e.texto)}${veces}${marca}</li>`;
     })
     .join("");
@@ -99,6 +118,7 @@ function tarjetaSesion(s, n) {
     </article>`;
 }
 
+/** Botón 'Ver sesiones': muestra las sesiones del usuario con sus hallazgos por reglas. */
 async function verSesiones(evento) {
   evento?.preventDefault();
   const d = datosAuditor();
@@ -109,7 +129,8 @@ async function verSesiones(evento) {
   if (d.hasta) q.set("hasta", d.hasta);
   try {
     const r = await api(`/auditor/sesiones?${q}`);
-    $("#aud-resumen").innerHTML = `<strong>${esc(r.usuario)}</strong>: ${Number(r.total_sesiones)} sesión(es) ${insigniaRiesgo(r.riesgo)}`;
+    $("#aud-resumen").innerHTML =
+      `<strong>${esc(r.usuario)}</strong>: ${Number(r.total_sesiones)} sesión(es) ${insigniaRiesgo(r.riesgo)}`;
     $("#aud-sesiones").innerHTML =
       r.sesiones
         .slice()
@@ -122,15 +143,18 @@ async function verSesiones(evento) {
   }
 }
 
+/** Muestra el informe del agente (motor, riesgo y texto con formato seguro). */
 function mostrarInforme(inf) {
   $("#aud-informe").hidden = false;
   $("#aud-informe-cab").innerHTML =
     `Informe #${Number(inf.id)} · <strong>${esc(inf.usuario)}</strong> · ${insigniaRiesgo(inf.riesgo)}
      · <span class="etiqueta-ia">${esc(NOMBRE_MOTOR[inf.motor] || inf.motor)}${inf.modelo ? " (" + esc(inf.modelo) + ")" : ""}</span>
-     · ${esc(fecha(inf.creado))}` + (inf.nota ? `<br><span class="nota">${esc(inf.nota)}</span>` : "");
+     · ${esc(fecha(inf.creado))}` +
+    (inf.nota ? `<br><span class="nota">${esc(inf.nota)}</span>` : "");
   $("#aud-informe-texto").innerHTML = markdownSeguro(inf.contenido);
 }
 
+/** Botón 'Generar informe con IA' (se bloquea mientras el agente trabaja). */
 async function generarInforme() {
   const d = datosAuditor();
   const error = validarPeriodo(d);
@@ -142,7 +166,10 @@ async function generarInforme() {
     const cuerpo = { usuario: d.usuario };
     if (d.desde) cuerpo.desde = d.desde;
     if (d.hasta) cuerpo.hasta = d.hasta;
-    const inf = await api("/auditor/informe", { method: "POST", body: JSON.stringify(cuerpo) });
+    const inf = await api("/auditor/informe", {
+      method: "POST",
+      body: JSON.stringify(cuerpo),
+    });
     mostrarInforme(inf);
     aviso(`Informe #${inf.id} listo (${NOMBRE_MOTOR[inf.motor] || inf.motor})`);
     await verSesiones();
@@ -155,13 +182,16 @@ async function generarInforme() {
   }
 }
 
+/** Lista de informes anteriores, cada uno desplegable. */
 async function listarInformes() {
   try {
     const lista = await api("/auditor/informes");
     $("#aud-historial").innerHTML =
       lista
         .map(
-          (i) => `<details class="detalle-cambio"><summary>#${Number(i.id)} · ${esc(i.usuario)} ·
+          (
+            i,
+          ) => `<details class="detalle-cambio"><summary>#${Number(i.id)} · ${esc(i.usuario)} ·
             ${esc(fecha(i.creado))} · riesgo ${esc(i.riesgo)} · ${esc(NOMBRE_MOTOR[i.motor] || i.motor)}
             · pedido por ${esc(i.pedido_por)}</summary>
             <div class="informe-ia">${markdownSeguro(i.contenido)}</div></details>`,
@@ -172,6 +202,7 @@ async function listarInformes() {
   }
 }
 
+/** Pestaña Auditoría IA: solo para el administrador; carga el motor activo y los usuarios. */
 async function cargarAuditoria() {
   let yo;
   try {
@@ -185,21 +216,30 @@ async function cargarAuditoria() {
     return;
   }
   try {
-    const [motor, usuarios] = await Promise.all([api("/auditor/estado"), api("/auditor/usuarios")]);
-    $("#aud-motor").textContent = `Motor del agente: ${motor.descripcion}${motor.modelo ? " · " + motor.modelo : ""}`;
+    const [motor, usuarios] = await Promise.all([
+      api("/auditor/estado"),
+      api("/auditor/usuarios"),
+    ]);
+    $("#aud-motor").textContent =
+      `Motor del agente: ${motor.descripcion}${motor.modelo ? " · " + motor.modelo : ""}`;
     const select = $("#aud-usuario");
     const anterior = select.value;
     select.innerHTML = "";
     usuarios.forEach((u) =>
       select.appendChild(
-        new Option(`${u.usuario}${u.rol ? " (" + u.rol + ")" : ""}${u.con_actividad ? "" : " · sin actividad"}`, u.usuario),
+        new Option(
+          `${u.usuario}${u.rol ? " (" + u.rol + ")" : ""}${u.con_actividad ? "" : " · sin actividad"}`,
+          u.usuario,
+        ),
       ),
     );
     if (anterior) select.value = anterior;
     if (!auditorListo) {
       const ahora = new Date();
       $("#form-auditor").elements.hasta.value = aLocal(ahora);
-      $("#form-auditor").elements.desde.value = aLocal(new Date(ahora - 24 * 3600 * 1000));
+      $("#form-auditor").elements.desde.value = aLocal(
+        new Date(ahora - 24 * 3600 * 1000),
+      );
       auditorListo = true;
     }
     const maximo = aLocal(new Date());
@@ -218,7 +258,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   $("#btn-aud-informe").addEventListener("click", generarInforme);
   try {
     const yo = await api("/auth/me"); // la pestaña solo se muestra al administrador
-    if (yo.role !== "administrador") $('[data-vista="auditoria"]').hidden = true;
+    if (yo.role !== "administrador")
+      $('[data-vista="auditoria"]').hidden = true;
   } catch {
     /* api() ya redirige al login si no hay sesión */
   }

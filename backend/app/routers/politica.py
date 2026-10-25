@@ -11,8 +11,8 @@ Política de defensa ante IA: flujo obligatorio con aprobación humana.
   POST /api/proposals/{id}/execute     -> ejecución autorizada (SIMULADA)
   POST /api/proposals/{id}/verify      -> verificación
 """
-from datetime import datetime, timezone
-from typing import Optional
+
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
@@ -20,8 +20,13 @@ from sqlalchemy.orm import Session
 from ..database import get_db
 from ..ingest import es_sospechoso
 from ..models import ActionProposal, AuditLog, Incident
-from ..politica_ia import (MAX_BLOQUEOS, MOTIVO_SUSPENSION, VENTANA,
-                           agente_suspendido, bloqueos_recientes_agente)
+from ..politica_ia import (
+    MAX_BLOQUEOS,
+    MOTIVO_SUSPENSION,
+    VENTANA,
+    agente_suspendido,
+    bloqueos_recientes_agente,
+)
 from ..schemas import ProposalCreate, ProposalExecute, ProposalOut, ProposalReview, ProposalVerify
 
 router = APIRouter(tags=["Política de IA y aprobaciones"])
@@ -31,12 +36,17 @@ router = APIRouter(tags=["Política de IA y aprobaciones"])
 NOMBRES_NO_HUMANOS = {"agente_ia", "agente", "ia", "ai", "bot", "sistema"}
 
 
-def auditar(db: Session, actor: str, accion: str, pid: Optional[int], detalle: str):
-    db.add(AuditLog(actor=actor, action=accion, entity_type="action_proposals",
-                    entity_id=pid, details=detalle[:300]))
+def auditar(db: Session, actor: str, accion: str, pid: int | None, detalle: str):
+    """Registra en la auditoría un paso de una propuesta."""
+    db.add(
+        AuditLog(
+            actor=actor, action=accion, entity_type="action_proposals", entity_id=pid, details=detalle[:300]
+        )
+    )
 
 
 def obtener_o_404(db: Session, pid: int) -> ActionProposal:
+    """Busca una propuesta por id o responde 404."""
     p = db.get(ActionProposal, pid)
     if p is None:
         raise HTTPException(status_code=404, detail=f"No existe la propuesta {pid}")
@@ -44,30 +54,43 @@ def obtener_o_404(db: Session, pid: int) -> ActionProposal:
 
 
 def exigir_estado(p: ActionProposal, esperado: str, accion: str):
+    """Responde 409 si la propuesta no está en el estado esperado."""
     if p.status != esperado:
-        raise HTTPException(status_code=409,
-                            detail=f"Para {accion}, la propuesta debe estar '{esperado}' "
-                                   f"(estado actual: '{p.status}')")
+        raise HTTPException(
+            status_code=409,
+            detail=f"Para {accion}, la propuesta debe estar '{esperado}' (estado actual: '{p.status}')",
+        )
 
 
 @router.get("/api/policy/agent-status", summary="Estado del agente de IA")
 def estado_agente(db: Session = Depends(get_db)):
+    """¿El agente de IA está suspendido? y cuántos bloqueos lleva."""
     n = bloqueos_recientes_agente(db)
-    return {"suspendido": n >= MAX_BLOQUEOS, "bloqueos_recientes": n,
-            "limite": MAX_BLOQUEOS, "ventana_minutos": int(VENTANA.total_seconds() // 60)}
+    return {
+        "suspendido": n >= MAX_BLOQUEOS,
+        "bloqueos_recientes": n,
+        "limite": MAX_BLOQUEOS,
+        "ventana_minutos": int(VENTANA.total_seconds() // 60),
+    }
 
 
 @router.get("/api/proposals", response_model=list[ProposalOut], summary="Listar propuestas")
-def listar(incident_id: Optional[int] = Query(None), db: Session = Depends(get_db)):
+def listar(incident_id: int | None = Query(None), db: Session = Depends(get_db)):
+    """Lista las propuestas, opcionalmente de un incidente."""
     consulta = db.query(ActionProposal)
     if incident_id is not None:
         consulta = consulta.filter(ActionProposal.incident_id == incident_id)
     return consulta.order_by(ActionProposal.id.desc()).all()
 
 
-@router.post("/api/proposals", response_model=ProposalOut, status_code=status.HTTP_201_CREATED,
-             summary="1) Proponer una acción")
+@router.post(
+    "/api/proposals",
+    response_model=ProposalOut,
+    status_code=status.HTTP_201_CREATED,
+    summary="1) Proponer una acción",
+)
 def proponer(datos: ProposalCreate, db: Session = Depends(get_db)):
+    """Paso 1: guarda una propuesta (rechaza sola las sospechosas y las del agente suspendido)."""
     incidente = db.get(Incident, datos.incident_id)
     if incidente is None:
         raise HTTPException(status_code=404, detail=f"No existe el incidente {datos.incident_id}")
@@ -79,15 +102,26 @@ def proponer(datos: ProposalCreate, db: Session = Depends(get_db)):
         if agente_suspendido(db):
             raise HTTPException(status_code=403, detail=MOTIVO_SUSPENSION)
         if es_sospechoso(datos.action_text):
-            auditar(db, actor, "PROPOSAL_REJECTED_AUTO", None,
-                    f"Incidente #{incidente.id}: propuesta sospechosa rechazada: {datos.action_text[:150]}")
+            auditar(
+                db,
+                actor,
+                "PROPOSAL_REJECTED_AUTO",
+                None,
+                f"Incidente #{incidente.id}: propuesta sospechosa rechazada: {datos.action_text[:150]}",
+            )
             db.commit()
-            raise HTTPException(status_code=422,
-                                detail="La propuesta del agente contiene instrucciones o comandos "
-                                       "sospechosos y fue rechazada automáticamente.")
+            raise HTTPException(
+                status_code=422,
+                detail="La propuesta del agente contiene instrucciones o comandos "
+                "sospechosos y fue rechazada automáticamente.",
+            )
 
-    p = ActionProposal(incident_id=incidente.id, action_text=datos.action_text,
-                       proposed_by=datos.proposed_by, status="propuesta")
+    p = ActionProposal(
+        incident_id=incidente.id,
+        action_text=datos.action_text,
+        proposed_by=datos.proposed_by,
+        status="propuesta",
+    )
     db.add(p)
     db.flush()
     auditar(db, actor, "PROPOSE", p.id, f"Incidente #{incidente.id}: {datos.action_text[:200]}")
@@ -96,38 +130,57 @@ def proponer(datos: ProposalCreate, db: Session = Depends(get_db)):
     return p
 
 
-@router.post("/api/proposals/{pid}/review", response_model=ProposalOut,
-             summary="2) Revisión humana: aprobar o rechazar")
+@router.post(
+    "/api/proposals/{pid}/review",
+    response_model=ProposalOut,
+    summary="2) Revisión humana: aprobar o rechazar",
+)
 def revisar(pid: int, datos: ProposalReview, db: Session = Depends(get_db)):
+    """Paso 2: revisión humana; un agente de IA nunca puede aprobar."""
     p = obtener_o_404(db, pid)
     exigir_estado(p, "propuesta", "revisarla")
     if datos.reviewed_by.strip().lower() in NOMBRES_NO_HUMANOS:
-        auditar(db, "agente_ia", "REVIEW_DENIED", p.id,
-                f"Intento de aprobación no humana firmado como '{datos.reviewed_by}'")
+        auditar(
+            db,
+            "agente_ia",
+            "REVIEW_DENIED",
+            p.id,
+            f"Intento de aprobación no humana firmado como '{datos.reviewed_by}'",
+        )
         db.commit()
-        raise HTTPException(status_code=403,
-                            detail="Un agente de IA no puede aprobar acciones: la revisión debe ser humana")
+        raise HTTPException(
+            status_code=403, detail="Un agente de IA no puede aprobar acciones: la revisión debe ser humana"
+        )
 
     p.status = datos.decision
     p.reviewed_by = datos.reviewed_by
-    p.reviewed_at = datetime.now(timezone.utc)
+    p.reviewed_at = datetime.now(UTC)
     if datos.nota:
         p.verification_notes = f"Revisión: {datos.nota}"
     accion = "APPROVE" if datos.decision == "aprobada" else "REJECT"
-    auditar(db, "operador_local", accion, p.id, f"{datos.reviewed_by} -> {datos.decision}: {p.action_text[:150]}")
+    auditar(
+        db, "operador_local", accion, p.id, f"{datos.reviewed_by} -> {datos.decision}: {p.action_text[:150]}"
+    )
     db.commit()
     db.refresh(p)
     return p
 
 
-@router.post("/api/proposals/{pid}/execute", response_model=ProposalOut,
-             summary="3) Ejecución autorizada (SIMULADA)")
+@router.post(
+    "/api/proposals/{pid}/execute", response_model=ProposalOut, summary="3) Ejecución autorizada (SIMULADA)"
+)
 def ejecutar(pid: int, datos: ProposalExecute, db: Session = Depends(get_db)):
+    """Paso 3: ejecución autorizada (simulada)."""
     p = obtener_o_404(db, pid)
     exigir_estado(p, "aprobada", "ejecutarla")
     p.status = "ejecutada"
-    auditar(db, "operador_local", "EXECUTE", p.id,
-            f"Ejecución SIMULADA autorizada por {datos.ejecutado_por}: {p.action_text[:150]}")
+    auditar(
+        db,
+        "operador_local",
+        "EXECUTE",
+        p.id,
+        f"Ejecución SIMULADA autorizada por {datos.ejecutado_por}: {p.action_text[:150]}",
+    )
     db.commit()
     db.refresh(p)
     return p
@@ -135,6 +188,7 @@ def ejecutar(pid: int, datos: ProposalExecute, db: Session = Depends(get_db)):
 
 @router.post("/api/proposals/{pid}/verify", response_model=ProposalOut, summary="4) Verificación")
 def verificar(pid: int, datos: ProposalVerify, db: Session = Depends(get_db)):
+    """Paso 4: verificación del resultado."""
     p = obtener_o_404(db, pid)
     exigir_estado(p, "ejecutada", "verificarla")
     previo = f"{p.verification_notes} | " if p.verification_notes else ""
@@ -144,5 +198,6 @@ def verificar(pid: int, datos: ProposalVerify, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(p)
     return p
+
 
 # --- FIN DEL ARCHIVO ---

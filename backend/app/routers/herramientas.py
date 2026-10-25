@@ -4,6 +4,7 @@ Herramientas del NOC:
   GET  /api/console/commands  -> comandos permitidos y bloqueados por fabricante
   POST /api/console/exec      -> ejecutar un comando en la consola simulada
 """
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
@@ -16,14 +17,17 @@ from ..schemas import ConfigRequest, ConfigResult, ConsoleRequest, ConsoleResult
 router = APIRouter(tags=["Herramientas: configuraciones y consola"])
 
 
-@router.post("/api/config/generate", response_model=ConfigResult,
-             summary="Generar configuración Syslog comentada")
+@router.post(
+    "/api/config/generate", response_model=ConfigResult, summary="Generar configuración Syslog comentada"
+)
 def generar_configuracion(datos: ConfigRequest):
+    """Genera la configuración Syslog comentada con advertencias y comandos de verificación."""
     return generar(datos)
 
 
 @router.get("/api/console/commands", summary="Comandos permitidos y bloqueados")
 def listar_comandos(vendor: VendorConfig = Query(..., description="Fabricante")):
+    """Comandos permitidos y bloqueados de la consola simulada para una marca."""
     return {
         "vendor": vendor,
         "permitidos": sorted(PERMITIDOS[vendor]),
@@ -33,12 +37,17 @@ def listar_comandos(vendor: VendorConfig = Query(..., description="Fabricante"))
     }
 
 
-@router.post("/api/console/exec", response_model=ConsoleResult,
-             summary="Ejecutar un comando en la consola simulada (solo lectura)")
+@router.post(
+    "/api/console/exec",
+    response_model=ConsoleResult,
+    summary="Ejecutar un comando en la consola simulada (solo lectura)",
+)
 def ejecutar_comando(datos: ConsoleRequest, db: Session = Depends(get_db)):
+    """Ejecuta un comando en la consola simulada aplicando la política (y la suspensión del agente de IA)."""
     equipo = db.get(Device, datos.device_id)
     if equipo is None:
         raise HTTPException(status_code=404, detail=f"No existe un equipo con id {datos.device_id}")
     return ejecutar(db, equipo, datos.comando, datos.actor)
+
 
 # --- FIN DEL ARCHIVO ---

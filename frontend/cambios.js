@@ -30,6 +30,7 @@ const NOMBRE_PLANTILLA = {
 };
 let usuarioCambios = null; // { username, role }
 
+/** True si el usuario conectado puede aprobar cambios (aprobador o administrador). */
 function esAprobador() {
   return (
     usuarioCambios &&
@@ -37,6 +38,7 @@ function esAprobador() {
   );
 }
 
+/** Muestra solo los campos que necesita el tipo de cambio elegido. */
 function mostrarCamposPlantilla() {
   const plantilla = $("#cam-plantilla").value;
   document.querySelectorAll("[data-campo]").forEach((label) => {
@@ -45,6 +47,7 @@ function mostrarCamposPlantilla() {
   $("#cam-previa").hidden = true;
 }
 
+/** Arma los datos del cambio desde el formulario (solo los campos de esa plantilla). */
 function datosCambio() {
   const f = new FormData($("#form-cambio"));
   const plantilla = f.get("plantilla");
@@ -62,6 +65,7 @@ function datosCambio() {
   };
 }
 
+/** Botón 'Vista previa': muestra los comandos exactos y su rollback sin guardar nada. */
 async function vistaPreviaCambio() {
   try {
     const r = await api("/changes/preview", {
@@ -77,6 +81,7 @@ async function vistaPreviaCambio() {
   }
 }
 
+/** Botón 'Proponer cambio' (bloqueado mientras envía para evitar duplicados). */
 async function proponerCambio(evento) {
   evento.preventDefault();
   const boton = $("#form-cambio button[type=submit]");
@@ -100,6 +105,7 @@ async function proponerCambio(evento) {
   }
 }
 
+/** Texto corto con los parámetros del cambio (ej. 'ip: ... · puerto: ...'). */
 function resumenParametros(c) {
   let p = {};
   try {
@@ -112,12 +118,14 @@ function resumenParametros(c) {
     .join(" · ");
 }
 
+/** Bloque desplegable con texto del equipo (respaldo, respuesta o verificación). */
 function bloqueTexto(titulo, texto) {
   return texto
     ? `<details class="detalle-cambio"><summary>${titulo}</summary><pre>${esc(texto)}</pre></details>`
     : "";
 }
 
+/** Tarjeta HTML segura de un cambio con los botones que permite su estado y el rol del usuario. */
 function tarjetaCambio(c) {
   const id = Number(c.id);
   const equipo = equipos.find((e) => e.id === c.device_id);
@@ -180,6 +188,7 @@ function tarjetaCambio(c) {
     </article>`;
 }
 
+/** Dibuja la lista de cambios recientes. */
 async function listarCambios() {
   try {
     const cambios = await api("/changes");
@@ -191,6 +200,7 @@ async function listarCambios() {
   }
 }
 
+/** Botones Aprobar / Rechazar / Ejecutar / Verificar / Deshacer de un cambio. */
 async function accionCambio(accion, id, decision) {
   const textos = {
     execute:
@@ -213,6 +223,7 @@ async function accionCambio(accion, id, decision) {
   await listarCambios();
 }
 
+/** Pestaña Cambios: carga los equipos Cisco y Huawei, el usuario y la lista de cambios. */
 async function cargarCambios() {
   try {
     await cargarEquipos();

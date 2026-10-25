@@ -74,7 +74,25 @@ Navegador (dashboard) ◄──HTTP── FastAPI (API) ◄────┘      
 3. Reglas fijas asignan riesgo bajo / medio / alto.
 4. Hermes redacta el informe con un resumen ya saneado. Si Hermes no responde, el informe se hace por reglas.
 
-## 7. Operación diaria
+## 7. Calidad del código
+
+| Regla | Herramienta | Comando |
+|---|---|---|
+| Errores y estilo de Python (PEP 8, importaciones, sintaxis moderna) | ruff | `ruff check backend` |
+| Formato de Python (indentación de 4 espacios, líneas de 110) | ruff | `ruff format backend` |
+| Formato de JavaScript, CSS y HTML (2 espacios) | Prettier | `npx prettier --check frontend` |
+| Misma indentación en cualquier editor | EditorConfig | archivo `.editorconfig` |
+
+Convenciones:
+- Cada archivo empieza con una descripción de lo que hace; cada función y clase tiene la suya (docstring en
+  Python, comentario `/** ... */` en JavaScript).
+- Los comentarios explican el **por qué** (por ejemplo, por qué no se guarda en memoria), no repiten el código.
+- Nombres en español y descriptivos; constantes en MAYÚSCULAS; funciones internas empiezan con `_`.
+- Todo texto que viene de un equipo o de un usuario se muestra con `esc()` / `textContent`, nunca como HTML.
+
+Instalar las herramientas: `pip install -r requirements-dev.txt` (ruff) y Node.js para Prettier (opcional).
+
+## 8. Operación diaria
 
 - Iniciar: `iniciar_noc.bat`. Hermes: `hermes gateway run` (o su tarea programada).
 - Respaldo: `python -m backend.scripts.respaldo exportar`.

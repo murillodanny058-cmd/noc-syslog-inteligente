@@ -1,0 +1,20 @@
+# Reglas de calidad del código (v1.0.1). Revisar con:  ruff check backend   y   ruff format backend
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+
+[tool.ruff.lint]
+# E/W: estilo PEP 8 · F: errores reales · I: orden de importaciones · B: errores comunes
+# UP: sintaxis moderna de Python · SIM: simplificaciones · N: nombres
+select = ["E", "W", "F", "I", "B", "UP", "SIM"]
+ignore = [
+    "B008",   # FastAPI usa Depends()/Query() como valor por defecto: es su forma normal de trabajar
+    "E501",   # el formateador ya controla el largo; algunos textos para el usuario son largos a propósito
+    "SIM105", # try/except/pass es más claro para estudiantes que contextlib.suppress
+]
+
+[tool.ruff.lint.per-file-ignores]
+"backend/scripts/pruebas_v1.py" = ["E402"]  # primero se configura la base temporal y luego se importa la app
+
+[tool.ruff.format]
+quote-style = "double"

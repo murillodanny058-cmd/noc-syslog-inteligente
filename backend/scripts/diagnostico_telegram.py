@@ -2,6 +2,7 @@
 Diagnóstico de Telegram. NO muestra el token.
 Uso: python -m backend.scripts.diagnostico_telegram
 """
+
 import json
 import os
 import urllib.error
@@ -16,6 +17,7 @@ base = "https://api.telegram.org/bot" + token
 
 
 def llamar(metodo, datos=None):
+    """Llama a un método de la API de Telegram y devuelve la respuesta, sin mostrar el token."""
     try:
         cuerpo = urllib.parse.urlencode(datos).encode() if datos else None
         with urllib.request.urlopen(base + "/" + metodo, data=cuerpo, timeout=10) as r:
@@ -28,11 +30,16 @@ print("1) Token cargado:", "SÍ" if token else "NO", "| tiene ':' ->", ":" in to
 print("2) Chat ID leído:", repr(chat))
 
 r = llamar("getMe")
-print("3) ¿El token es válido?:", "SÍ, bot @" + r["result"]["username"] if r.get("ok") else r.get("description"))
+print(
+    "3) ¿El token es válido?:", "SÍ, bot @" + r["result"]["username"] if r.get("ok") else r.get("description")
+)
 
 r = llamar("getUpdates")
-quienes = {(u["message"]["chat"]["id"], u["message"]["chat"].get("first_name"))
-           for u in r.get("result", []) if "message" in u}
+quienes = {
+    (u["message"]["chat"]["id"], u["message"]["chat"].get("first_name"))
+    for u in r.get("result", [])
+    if "message" in u
+}
 print("4) Quién le ha escrito al bot:", quienes or "NADIE todavía")
 
 r = llamar("sendMessage", {"chat_id": chat, "text": "Prueba de diagnóstico del NOC"})

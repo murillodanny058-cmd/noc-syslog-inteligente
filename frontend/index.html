@@ -605,13 +605,17 @@
               cerró. El agente solo lee: no puede ejecutar nada. Los textos que
               parezcan instrucciones para una IA se le ocultan.
             </p>
-            <label>Usuario<select id="aud-usuario" name="usuario" required></select></label>
+            <label
+              >Usuario<select id="aud-usuario" name="usuario" required></select
+            ></label>
             <label>Desde<input type="datetime-local" name="desde" /></label>
             <label>Hasta<input type="datetime-local" name="hasta" /></label>
             <p id="aud-motor" class="nota ancho"></p>
             <div class="botones ancho">
               <button type="submit" class="btn secundario">Ver sesiones</button>
-              <button type="button" id="btn-aud-informe" class="btn">Generar informe con IA</button>
+              <button type="button" id="btn-aud-informe" class="btn">
+                Generar informe con IA
+              </button>
             </div>
           </form>
           <article id="aud-informe" class="panel panel-alerta" hidden>

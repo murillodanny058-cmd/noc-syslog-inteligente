@@ -1,6 +1,6 @@
-# Resultados de pruebas automáticas — v1.0.0
+# Resultados de pruebas automáticas — v1.0.1
 
-Ejecutado: 2026-10-24 23:08 con `python -m backend.scripts.pruebas_v1` (base SQLite temporal, sin enviar nada a Telegram ni a la IA).
+Ejecutado: 2026-10-24 23:48 con `python -m backend.scripts.pruebas_v1` (base SQLite temporal, sin enviar nada a Telegram ni a la IA).
 
 **Resultado: 31 de 31 pruebas OK.**
 
@@ -33,7 +33,7 @@ Ejecutado: 2026-10-24 23:08 con `python -m backend.scripts.pruebas_v1` (base SQL
 | S12 | Seguridad | Validación: 127.0.0.1 no es un servidor Syslog válido | 422 | 422 | OK |
 | S13 | Seguridad | Agente auditor: la inyección se oculta a la IA | texto omitido | omitido | OK |
 | F14 | Funcional | Agente auditor: informe de sesiones (modo reglas) | 200 | 200 · 2 sesiones · riesgo alto | OK |
-| C01 | Carga | 500 logs distintos de 5 equipos en un lote | 500 nuevos | 500 nuevos en 3.7 s (135 logs/s) | OK |
+| C01 | Carga | 500 logs distintos de 5 equipos en un lote | 500 nuevos | 500 nuevos en 2.9 s (172 logs/s) | OK |
 | C02 | Carga | Tormenta: 300 logs distintos de un equipo en 1 minuto | 120 guardados, 180 descartados | 120 guardados, 180 descartados | OK |
 | C03 | Carga | 300 veces el mismo log | 1 evento, 299 agrupados | 1 evento, 299 agrupados | OK |
 | R01 | Respaldo | Exportar respaldo y recuperarlo en una base nueva | tablas iguales | tablas iguales | OK |

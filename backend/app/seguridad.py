@@ -9,12 +9,13 @@ Autenticación y autorización (Fase 7).
   solo lo puede hacer el administrador (denegar por defecto).
 - Auditoría: las acciones quedan a nombre del usuario que inició sesión.
 """
+
 import hashlib
 import hmac
 import re
 import secrets
 from contextvars import ContextVar
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from fastapi import HTTPException, Request
 from sqlalchemy import event
@@ -40,12 +41,14 @@ USUARIO_CTX: ContextVar = ContextVar("usuario_noc", default=None)
 # Contraseñas
 # ---------------------------------------------------------------------------
 def hash_password(password: str) -> str:
+    """Convierte la contraseña en un hash scrypt con sal aleatoria (nunca se guarda en texto)."""
     sal = secrets.token_bytes(16)
     clave = hashlib.scrypt(password.encode("utf-8"), salt=sal, n=2**14, r=8, p=1)
     return f"scrypt${sal.hex()}${clave.hex()}"
 
 
 def verificar_password(password: str, guardado: str) -> bool:
+    """Compara una contraseña con su hash en tiempo constante."""
     try:
         _algoritmo, sal_hex, clave_hex = guardado.split("$")
         clave = hashlib.scrypt(password.encode("utf-8"), salt=bytes.fromhex(sal_hex), n=2**14, r=8, p=1)
@@ -72,25 +75,32 @@ HASH_FICTICIO = hash_password("usuario-inexistente-123")
 # Sesiones
 # ---------------------------------------------------------------------------
 def hash_token(token: str) -> str:
+    """Hash SHA-256 del token de sesión (en la base nunca se guarda el token real)."""
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
 
 def crear_sesion(db, usuario: User) -> str:
+    """Crea una sesión de 8 horas y devuelve el token para la cookie."""
     token = secrets.token_urlsafe(32)
-    db.add(UserSession(token_hash=hash_token(token), user_id=usuario.id,
-                       expires_at=datetime.now(timezone.utc) + DURACION_SESION))
+    db.add(
+        UserSession(
+            token_hash=hash_token(token), user_id=usuario.id, expires_at=datetime.now(UTC) + DURACION_SESION
+        )
+    )
     return token
 
 
 def _usuario_por_token(token):
+    """Busca el usuario de una cookie de sesión válida y activa; None si no hay sesión."""
     if not token:
         return None
     db = SessionLocal()
     try:
-        sesion = (db.query(UserSession)
-                  .filter(UserSession.token_hash == hash_token(token),
-                          UserSession.expires_at > datetime.now(timezone.utc))
-                  .first())
+        sesion = (
+            db.query(UserSession)
+            .filter(UserSession.token_hash == hash_token(token), UserSession.expires_at > datetime.now(UTC))
+            .first()
+        )
         if sesion is None:
             return None
         u = db.get(User, sesion.user_id)
@@ -106,31 +116,32 @@ def _usuario_por_token(token):
 # La primera regla que coincide es la que se aplica.
 # ---------------------------------------------------------------------------
 PERMISOS = [
-    ("GET",  r"/api/audit",                                  APROBADORES),
-    ("GET",  r"/api/users.*",                                ADMIN),
-    ("GET",  r"/api/auditor.*",                              ADMIN),
-        ("GET",  r"/api/notifications.*",                        APROBADORES),
-    ("GET",  r"/api/.*",                                     TODOS),
-    ("POST", r"/api/auth/logout",                            TODOS),
-    ("POST", r"/api/syslog/(parse|ingest|import|simulate)",  TODOS),
-    ("POST", r"/api/incidents(/from-event/\d+)?",            TODOS),
-    ("PUT",  r"/api/incidents/\d+",                          TODOS),
-    ("POST", r"/api/config/generate",                        TODOS),
-    ("POST", r"/api/console/exec",                           TODOS),
-        ("POST", r"/api/serial/exec",                            TODOS),
-    ("POST", r"/api/serial/(conectar|desconectar)",          APROBADORES),
-        ("POST", r"/api/devices/\d+/ports/refresh",              TODOS),
-            ("POST", r"/api/changes(/preview)?",                     TODOS),
-    ("POST", r"/api/changes/\d+/verify",                     TODOS),
-    ("POST", r"/api/changes/\d+/(review|execute|rollback)",  APROBADORES),
-    ("POST", r"/api/proposals",                              TODOS),
-    ("POST", r"/api/proposals/\d+/(review|execute|verify)",  APROBADORES),
+    ("GET", r"/api/audit", APROBADORES),
+    ("GET", r"/api/users.*", ADMIN),
+    ("GET", r"/api/auditor.*", ADMIN),
+    ("GET", r"/api/notifications.*", APROBADORES),
+    ("GET", r"/api/.*", TODOS),
+    ("POST", r"/api/auth/logout", TODOS),
+    ("POST", r"/api/syslog/(parse|ingest|import|simulate)", TODOS),
+    ("POST", r"/api/incidents(/from-event/\d+)?", TODOS),
+    ("PUT", r"/api/incidents/\d+", TODOS),
+    ("POST", r"/api/config/generate", TODOS),
+    ("POST", r"/api/console/exec", TODOS),
+    ("POST", r"/api/serial/exec", TODOS),
+    ("POST", r"/api/serial/(conectar|desconectar)", APROBADORES),
+    ("POST", r"/api/devices/\d+/ports/refresh", TODOS),
+    ("POST", r"/api/changes(/preview)?", TODOS),
+    ("POST", r"/api/changes/\d+/verify", TODOS),
+    ("POST", r"/api/changes/\d+/(review|execute|rollback)", APROBADORES),
+    ("POST", r"/api/proposals", TODOS),
+    ("POST", r"/api/proposals/\d+/(review|execute|verify)", APROBADORES),
 ]
 # Lo que no esté aquí (crear, editar o borrar equipos; gestionar usuarios...)
 # solo lo puede hacer el administrador: DENEGAR POR DEFECTO.
 
 
 def roles_permitidos(metodo: str, ruta: str) -> set:
+    """Roles que pueden usar un método y una ruta (lo que no está en la tabla: solo administrador)."""
     for m, patron, roles in PERMISOS:
         if m == metodo and re.fullmatch(patron, ruta):
             return roles
@@ -144,8 +155,9 @@ async def autorizar(request: Request) -> dict:
         raise HTTPException(status_code=401, detail="Debe iniciar sesión")
     request.state.usuario = usuario  # Fase 12: así el auditor ve también los intentos sin permiso
     if usuario["role"] not in roles_permitidos(request.method, request.url.path):
-        raise HTTPException(status_code=403,
-                            detail=f"Su rol ({usuario['role']}) no tiene permiso para esta acción")
+        raise HTTPException(
+            status_code=403, detail=f"Su rol ({usuario['role']}) no tiene permiso para esta acción"
+        )
     USUARIO_CTX.set(usuario["username"])
     request.state.usuario = usuario
     return usuario

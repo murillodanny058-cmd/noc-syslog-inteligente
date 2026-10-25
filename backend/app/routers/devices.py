@@ -7,8 +7,9 @@ Endpoints CRUD del inventario de equipos.
   DELETE /api/devices/{id}   -> eliminar
 Cada cambio queda registrado en audit_log (quién, qué y cuándo).
 """
+
 import ipaddress
-from typing import List, Optional
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
@@ -37,8 +38,7 @@ ACTOR = "operador_local"
 # ---------------------------------------------------------------------------
 def registrar_auditoria(db: Session, accion: str, device_id: int, detalle: str):
     """Agrega un registro al audit_log (se guarda con el mismo commit del cambio)."""
-    db.add(AuditLog(actor=ACTOR, action=accion, entity_type="devices",
-                    entity_id=device_id, details=detalle))
+    db.add(AuditLog(actor=ACTOR, action=accion, entity_type="devices", entity_id=device_id, details=detalle))
 
 
 def validar_ip_simulada(ip: str, es_simulado: bool):
@@ -48,7 +48,7 @@ def validar_ip_simulada(ip: str, es_simulado: bool):
         raise HTTPException(
             status_code=422,
             detail="Un equipo simulado debe usar una IP de documentación (RFC 5737): "
-                   "192.0.2.x, 198.51.100.x o 203.0.113.x",
+            "192.0.2.x, 198.51.100.x o 203.0.113.x",
         )
 
 
@@ -60,7 +60,7 @@ def obtener_o_404(db: Session, device_id: int) -> Device:
     return equipo
 
 
-def nombre_duplicado(db: Session, nombre: str, excluir_id: Optional[int] = None) -> bool:
+def nombre_duplicado(db: Session, nombre: str, excluir_id: int | None = None) -> bool:
     """True si ya existe otro equipo con ese nombre."""
     consulta = db.query(Device).filter(Device.name == nombre)
     if excluir_id is not None:
@@ -71,14 +71,14 @@ def nombre_duplicado(db: Session, nombre: str, excluir_id: Optional[int] = None)
 # ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
-@router.get("", response_model=List[DeviceOut], summary="Listar equipos")
+@router.get("", response_model=list[DeviceOut], summary="Listar equipos")
 def listar_equipos(
-    vendor: Optional[Vendor] = Query(None, description="Filtrar por marca"),
-    estado: Optional[DeviceStatus] = Query(None, description="Filtrar por estado"),
-    buscar: Optional[str] = Query(None, max_length=50,
-                                  description="Texto a buscar en nombre, IP o ubicación"),
+    vendor: Vendor | None = Query(None, description="Filtrar por marca"),
+    estado: DeviceStatus | None = Query(None, description="Filtrar por estado"),
+    buscar: str | None = Query(None, max_length=50, description="Texto a buscar en nombre, IP o ubicación"),
     db: Session = Depends(get_db),
 ):
+    """Lista los equipos, con filtros por marca, estado y texto."""
     consulta = db.query(Device)
     if vendor:
         consulta = consulta.filter(Device.vendor == vendor)
@@ -94,12 +94,13 @@ def listar_equipos(
 
 @router.get("/{device_id}", response_model=DeviceOut, summary="Ver un equipo")
 def ver_equipo(device_id: int, db: Session = Depends(get_db)):
+    """Datos de un equipo o 404."""
     return obtener_o_404(db, device_id)
 
 
-@router.post("", response_model=DeviceOut, status_code=status.HTTP_201_CREATED,
-             summary="Crear un equipo")
+@router.post("", response_model=DeviceOut, status_code=status.HTTP_201_CREATED, summary="Crear un equipo")
 def crear_equipo(datos: DeviceCreate, db: Session = Depends(get_db)):
+    """Registra un equipo (solo administrador). Rechaza nombres e IP duplicados."""
     if nombre_duplicado(db, datos.name):
         raise HTTPException(status_code=409, detail=f"Ya existe un equipo llamado '{datos.name}'")
     validar_ip_simulada(datos.ip_address, datos.is_simulated)
@@ -107,8 +108,9 @@ def crear_equipo(datos: DeviceCreate, db: Session = Depends(get_db)):
     equipo = Device(**datos.model_dump())
     db.add(equipo)
     db.flush()  # asigna el id sin confirmar todavía, para usarlo en la auditoría
-    registrar_auditoria(db, "CREATE", equipo.id,
-                        f"Equipo creado: {equipo.name} ({equipo.ip_address}, {equipo.vendor})")
+    registrar_auditoria(
+        db, "CREATE", equipo.id, f"Equipo creado: {equipo.name} ({equipo.ip_address}, {equipo.vendor})"
+    )
     db.commit()  # guarda el equipo y su auditoría JUNTOS (todo o nada)
     db.refresh(equipo)
     return equipo
@@ -116,6 +118,7 @@ def crear_equipo(datos: DeviceCreate, db: Session = Depends(get_db)):
 
 @router.put("/{device_id}", response_model=DeviceOut, summary="Editar un equipo")
 def editar_equipo(device_id: int, datos: DeviceUpdate, db: Session = Depends(get_db)):
+    """Cambia solo los campos enviados de un equipo y lo audita."""
     equipo = obtener_o_404(db, device_id)
 
     # Solo los campos que el usuario realmente envió
@@ -127,8 +130,9 @@ def editar_equipo(device_id: int, datos: DeviceUpdate, db: Session = Depends(get
         raise HTTPException(status_code=409, detail=f"Ya existe un equipo llamado '{cambios['name']}'")
 
     # Validamos con los valores FINALES (los nuevos o, si no cambian, los actuales)
-    validar_ip_simulada(cambios.get("ip_address", equipo.ip_address),
-                        cambios.get("is_simulated", equipo.is_simulated))
+    validar_ip_simulada(
+        cambios.get("ip_address", equipo.ip_address), cambios.get("is_simulated", equipo.is_simulated)
+    )
 
     detalle = []
     for campo, valor_nuevo in cambios.items():
@@ -144,9 +148,9 @@ def editar_equipo(device_id: int, datos: DeviceUpdate, db: Session = Depends(get
     return equipo
 
 
-@router.delete("/{device_id}", status_code=status.HTTP_204_NO_CONTENT,
-               summary="Eliminar un equipo")
+@router.delete("/{device_id}", status_code=status.HTTP_204_NO_CONTENT, summary="Eliminar un equipo")
 def eliminar_equipo(device_id: int, db: Session = Depends(get_db)):
+    """Elimina un equipo sin historia; si ya tiene eventos, se protege y no se borra."""
     equipo = obtener_o_404(db, device_id)
 
     # Protección: no se borra la historia. Si tiene eventos o incidentes,
@@ -155,10 +159,9 @@ def eliminar_equipo(device_id: int, db: Session = Depends(get_db)):
         raise HTTPException(
             status_code=409,
             detail="El equipo tiene eventos o incidentes asociados. "
-                   "Cámbielo a estado 'inactivo' en vez de eliminarlo.",
+            "Cámbielo a estado 'inactivo' en vez de eliminarlo.",
         )
 
-    registrar_auditoria(db, "DELETE", equipo.id,
-                        f"Equipo eliminado: {equipo.name} ({equipo.ip_address})")
+    registrar_auditoria(db, "DELETE", equipo.id, f"Equipo eliminado: {equipo.name} ({equipo.ip_address})")
     db.delete(equipo)
     db.commit()

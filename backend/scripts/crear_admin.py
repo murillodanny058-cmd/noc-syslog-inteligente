@@ -5,6 +5,7 @@ La contraseña se escribe de forma oculta y nunca queda en el código.
 Uso:
     python -m backend.scripts.crear_admin
 """
+
 import re
 from getpass import getpass
 
@@ -14,6 +15,7 @@ from backend.app.seguridad import hash_password, validar_fortaleza
 
 
 def main():
+    """Pide los datos por consola (contraseña oculta) y crea el administrador."""
     Base.metadata.create_all(bind=engine)
 
     usuario = input("Usuario administrador (minúsculas, ej. admin): ").strip().lower()
@@ -38,12 +40,18 @@ def main():
         if db.query(User).filter(User.username == usuario).first():
             print(f"[ERROR] Ya existe el usuario '{usuario}'.")
             return
-        u = User(username=usuario, full_name=nombre, role="administrador",
-                 password_hash=hash_password(clave))
+        u = User(username=usuario, full_name=nombre, role="administrador", password_hash=hash_password(clave))
         db.add(u)
         db.flush()
-        db.add(AuditLog(actor="sistema", action="USER_CREATE", entity_type="users", entity_id=u.id,
-                        details=f"Administrador '{usuario}' creado por consola"))
+        db.add(
+            AuditLog(
+                actor="sistema",
+                action="USER_CREATE",
+                entity_type="users",
+                entity_id=u.id,
+                details=f"Administrador '{usuario}' creado por consola",
+            )
+        )
         db.commit()
         print(f"[OK] Administrador '{usuario}' creado. Ya puede iniciar sesión en el dashboard.")
     finally:

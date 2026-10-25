@@ -43,6 +43,7 @@ async function cargarConfiguraciones() {
   select.value = actual;
 }
 
+/** Al elegir un equipo en Configuraciones, copia su marca y su nombre al formulario. */
 function elegirEquipoConfig() {
   const eq = equipos.find((e) => e.id === Number($("#cfg-equipo").value));
   if (!eq) return;
@@ -51,6 +52,7 @@ function elegirEquipoConfig() {
   form.elements.nombre_equipo.value = eq.name;
 }
 
+/** Botón 'Generar configuración': muestra la configuración, sus advertencias y la verificación. */
 async function generarConfiguracion(evento) {
   evento.preventDefault();
   const f = new FormData(evento.target);
@@ -105,6 +107,7 @@ async function generarConfiguracion(evento) {
   }
 }
 
+/** Copia la configuración generada al portapapeles. */
 async function copiarConfiguracion() {
   try {
     await navigator.clipboard.writeText($("#config-salida").textContent);
@@ -117,6 +120,7 @@ async function copiarConfiguracion() {
   }
 }
 
+/** Lleva a la pestaña Consola con el equipo y el comando de verificación elegidos. */
 function probarEnConsola(comando, nombreEquipo) {
   const eq = equipos.find((e) => e.name === nombreEquipo);
   pendienteConsola = { comando, id: eq ? eq.id : null };
@@ -130,14 +134,17 @@ let serialUltimo = 0; // última línea de la consola real que ya se mostró
 let serialTimer = null; // consulta periódica mientras la consola real está abierta
 let serialEstado = null; // último estado recibido del servidor
 
+/** True si la consola está en modo 'Equipo REAL por cable de consola'. */
 function modoReal() {
   return $("#con-modo").value === "real";
 }
 
+/** Equipo elegido en la consola. */
 function equipoConsola() {
   return equipos.find((e) => e.id === Number($("#con-equipo").value));
 }
 
+/** Agrega una línea a la pantalla de la consola (como texto, nunca como HTML). */
 function escribirLinea(texto, clase = "") {
   const linea = document.createElement("div");
   linea.className = `t-linea ${clase}`;
@@ -148,6 +155,7 @@ function escribirLinea(texto, clase = "") {
   pantalla.scrollTop = pantalla.scrollHeight;
 }
 
+/** Muestra el prompt del equipo (ej. Switch# o <HUAWEI>) junto al campo de comandos. */
 function actualizarPrompt() {
   const eq = equipoConsola();
   if (modoReal() && serialEstado && serialEstado.conectado) {
@@ -160,6 +168,7 @@ function actualizarPrompt() {
     : ">";
 }
 
+/** Panel derecho de la consola: comandos permitidos y bloqueados de la marca. */
 async function cargarPolitica(vendor) {
   const base = modoReal() ? "/serial/commands" : "/console/commands";
   try {
@@ -183,6 +192,7 @@ async function cargarPolitica(vendor) {
   }
 }
 
+/** Prepara la consola para el equipo elegido (simulada) o muestra el estado de la conexión (real). */
 async function conectarConsola() {
   $("#terminal-salida").innerHTML = "";
   const eq = equipoConsola();
@@ -235,6 +245,7 @@ async function conectarConsola() {
   await cargarPolitica(eq.vendor);
 }
 
+/** Pestaña Consola: arma la lista de equipos según el modo (SIM o REAL) y avisa si no hay reales. */
 async function cargarConsola() {
   try {
     await cargarEquipos();
@@ -252,9 +263,18 @@ async function cargarConsola() {
   );
   // v1.0.0: avisar en vez de elegir otro equipo en silencio
   if (real && !compatibles.length)
-    aviso("No hay equipos REALES en el inventario. Regístrelo en Inventario con Tipo: Real (laboratorio).", "error");
-  else if (real && anterior && !compatibles.some((e) => String(e.id) === anterior))
-    aviso("Modo REAL: solo aparecen equipos registrados como Real. Si el suyo no está, regístrelo en Inventario.");
+    aviso(
+      "No hay equipos REALES en el inventario. Regístrelo en Inventario con Tipo: Real (laboratorio).",
+      "error",
+    );
+  else if (
+    real &&
+    anterior &&
+    !compatibles.some((e) => String(e.id) === anterior)
+  )
+    aviso(
+      "Modo REAL: solo aparecen equipos registrados como Real. Si el suyo no está, regístrelo en Inventario.",
+    );
   select.innerHTML = "";
   compatibles.forEach((e) =>
     select.appendChild(
@@ -328,6 +348,7 @@ async function buscarPuertos() {
   }
 }
 
+/** Muestra el estado de la consola real (conectado, equipo, logs capturados, avisos) y sus líneas nuevas. */
 function pintarEstadoSerial(e) {
   const caja = $("#ser-estado");
   if (e.conectado) {
@@ -359,6 +380,7 @@ function pintarEstadoSerial(e) {
   $("#con-equipo").disabled = e.conectado;
 }
 
+/** Pide al servidor el estado de la consola real y las líneas nuevas. */
 async function refrescarSerial() {
   if (!modoReal()) return detenerSondeo();
   let e;
@@ -390,11 +412,13 @@ async function refrescarSerial() {
   }
 }
 
+/** Detiene la consulta periódica del estado de la consola real. */
 function detenerSondeo() {
   if (serialTimer) clearInterval(serialTimer);
   serialTimer = null;
 }
 
+/** Botón 'Conectar': abre el puerto COM elegido con el equipo real. */
 async function serialConectar() {
   const eq = equipoConsola();
   const puerto = $("#ser-puerto").value;
@@ -420,6 +444,7 @@ async function serialConectar() {
   await refrescarSerial();
 }
 
+/** Botón 'Desconectar': cierra el puerto COM. */
 async function serialDesconectar() {
   try {
     await api("/serial/desconectar", { method: "POST" });
@@ -430,6 +455,7 @@ async function serialDesconectar() {
   await refrescarSerial();
 }
 
+/** Cambia entre consola simulada y equipo real, empezando con la pantalla limpia. */
 function cambiarModo() {
   detenerSondeo();
   serialEstado = null;
@@ -439,6 +465,7 @@ function cambiarModo() {
   cargarConsola();
 }
 
+/** Envía el comando escrito a la consola (simulada o real) y muestra la respuesta. */
 async function ejecutarComando(evento) {
   evento.preventDefault();
   const entrada = $("#con-comando");
@@ -497,6 +524,7 @@ async function ejecutarComando(evento) {
   if (real) await refrescarSerial();
 }
 
+/** Flechas arriba/abajo: recorre los comandos escritos antes. */
 function navegarHistorial(evento) {
   if (evento.key === "ArrowUp" && posicionHistorial > 0) {
     posicionHistorial--;
@@ -514,6 +542,7 @@ function navegarHistorial(evento) {
   }
 }
 
+/** Cambia el aspecto de la consola cuando 'Quién escribe' es el agente de IA. */
 function actualizarModoActor() {
   const esIA = $("#con-actor").value === "agente_ia";
   $("#terminal").classList.toggle("modo-ia", esIA);

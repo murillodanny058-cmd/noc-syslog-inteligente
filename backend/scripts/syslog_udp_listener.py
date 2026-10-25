@@ -13,6 +13,7 @@ Medidas de seguridad:
   - Los mensajes pasan por el motor de ingesta: deduplicación, control de
     tormentas y detección de inyección de instrucciones.
 """
+
 import argparse
 import ipaddress
 import socket
@@ -27,14 +28,19 @@ TAMANO_MAXIMO = 4096
 
 
 def main():
+    """Receptor Syslog por UDP: solo acepta las redes permitidas y guarda cada mensaje."""
     parser = argparse.ArgumentParser(description="Receptor Syslog UDP del NOC")
-    parser.add_argument("--host", default="127.0.0.1",
-                        help="IP donde escuchar (0.0.0.0 = todas las interfaces)")
+    parser.add_argument(
+        "--host", default="127.0.0.1", help="IP donde escuchar (0.0.0.0 = todas las interfaces)"
+    )
     parser.add_argument("--puerto", type=int, default=5514, help="Puerto UDP")
-    parser.add_argument("--tipo", choices=["simulado", "real"], default="simulado",
-                        help="Cómo etiquetar los mensajes recibidos")
-    parser.add_argument("--permitidas", default=REDES_PERMITIDAS,
-                        help="Redes autorizadas separadas por coma")
+    parser.add_argument(
+        "--tipo",
+        choices=["simulado", "real"],
+        default="simulado",
+        help="Cómo etiquetar los mensajes recibidos",
+    )
+    parser.add_argument("--permitidas", default=REDES_PERMITIDAS, help="Redes autorizadas separadas por coma")
     args = parser.parse_args()
 
     redes = [ipaddress.ip_network(r.strip()) for r in args.permitidas.split(",")]
@@ -50,13 +56,20 @@ def main():
     print(" Presione Ctrl + C para detener")
     print("=" * 70)
 
-    conteo = {"recibidos": 0, "bloqueados": 0, "nuevo": 0, "duplicado": 0,
-              "descartado_tormenta": 0, "rechazado": 0, "sospechosos": 0}
+    conteo = {
+        "recibidos": 0,
+        "bloqueados": 0,
+        "nuevo": 0,
+        "duplicado": 0,
+        "descartado_tormenta": 0,
+        "rechazado": 0,
+        "sospechosos": 0,
+    }
     try:
         while True:
             try:
                 datos, (ip_origen, _puerto) = sock.recvfrom(TAMANO_MAXIMO)
-            except socket.timeout:
+            except TimeoutError:
                 continue  # no llegó nada en este segundo; seguimos esperando
 
             conteo["recibidos"] += 1
@@ -84,9 +97,11 @@ def main():
             if r["resultado"] == "nuevo" and r.get("sospechoso"):
                 conteo["sospechosos"] += 1
                 alerta = "  [!] SOSPECHOSO"
-            print(f"[{hora}] {ip_origen:15} {r['resultado']:12} "
-                  f"sev={r.get('severity')} {r.get('severity_name') or ''}"
-                  f" x{r.get('repeat_count') or 0}{alerta}")
+            print(
+                f"[{hora}] {ip_origen:15} {r['resultado']:12} "
+                f"sev={r.get('severity')} {r.get('severity_name') or ''}"
+                f" x{r.get('repeat_count') or 0}{alerta}"
+            )
     except KeyboardInterrupt:
         pass
     finally:

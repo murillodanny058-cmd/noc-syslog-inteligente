@@ -7,8 +7,8 @@ Endpoints de Syslog y eventos.
   GET  /api/events           -> consultar eventos con filtros
   GET  /api/events/stats     -> resumen por severidad
 """
-from datetime import datetime, timedelta, timezone
-from typing import Optional
+
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func
@@ -24,17 +24,23 @@ from ..syslog_parser import FACILITIES, SEVERIDADES, parsear
 router = APIRouter(tags=["Syslog y eventos"])
 
 
-def _a_utc(fecha: Optional[datetime]) -> Optional[datetime]:
+def _a_utc(fecha: datetime | None) -> datetime | None:
     """Si la fecha trae zona horaria, la convierte a UTC. Si no trae, se asume UTC."""
     if fecha is None or fecha.tzinfo is None:
         return fecha
-    return fecha.astimezone(timezone.utc)
+    return fecha.astimezone(UTC)
 
 
 def _procesar_lote(db: Session, items) -> dict:
     """Ingiere varios mensajes y devuelve un resumen de lo que pasó."""
-    resumen = {"total": len(items), "nuevo": 0, "duplicado": 0,
-               "descartado_tormenta": 0, "rechazado": 0, "sospechosos": 0}
+    resumen = {
+        "total": len(items),
+        "nuevo": 0,
+        "duplicado": 0,
+        "descartado_tormenta": 0,
+        "rechazado": 0,
+        "sospechosos": 0,
+    }
     for raw, ip, tipo in items:
         r = ingerir(db, raw, ip, tipo)
         resumen[r["resultado"]] += 1
@@ -54,11 +60,13 @@ def analizar(datos: SyslogTexto):
 
 @router.post("/api/syslog/ingest", response_model=IngestResult, summary="Recibir un mensaje Syslog")
 def recibir(datos: SyslogIn, db: Session = Depends(get_db)):
+    """Recibe un mensaje Syslog, lo analiza y lo guarda (o lo agrupa si es repetido)."""
     return ingerir(db, datos.raw, datos.source_ip, datos.source_type)
 
 
 @router.post("/api/syslog/import", summary="Importar un lote de mensajes")
 def importar(lote: SyslogImport, db: Session = Depends(get_db)):
+    """Recibe hasta 500 mensajes de una vez y devuelve un resumen."""
     return _procesar_lote(db, [(m.raw, m.source_ip, m.source_type) for m in lote.mensajes])
 
 
@@ -68,18 +76,22 @@ def simular(
     incluir_ataques: bool = Query(True, description="Agrega fuerza bruta e inyección de instrucciones"),
     db: Session = Depends(get_db),
 ):
+    """Genera tráfico SIMULADO de los equipos SIM (opcionalmente con ataques de prueba)."""
     equipos = db.query(Device).filter(Device.is_simulated.is_(True)).all()
     if not equipos:
         raise HTTPException(status_code=400, detail="No hay equipos simulados en el inventario")
     return _procesar_lote(db, generar_lote(equipos, cantidad, incluir_ataques))
 
-def validar_rango_fechas(desde: Optional[datetime], hasta: Optional[datetime]):
-    """No se aceptan fechas en el futuro ni un 'desde' posterior al 'hasta'."""
-    def utc(f):
-        f = _a_utc(f)
-        return f if f.tzinfo else f.replace(tzinfo=timezone.utc)
 
-    limite = datetime.now(timezone.utc) + timedelta(minutes=5)  # 5 min de tolerancia entre relojes
+def validar_rango_fechas(desde: datetime | None, hasta: datetime | None):
+    """No se aceptan fechas en el futuro ni un 'desde' posterior al 'hasta'."""
+
+    def utc(f):
+        """Fecha en UTC (si no trae zona, se asume UTC)."""
+        f = _a_utc(f)
+        return f if f.tzinfo else f.replace(tzinfo=UTC)
+
+    limite = datetime.now(UTC) + timedelta(minutes=5)  # 5 min de tolerancia entre relojes
     for nombre, valor in (("Desde", desde), ("Hasta", hasta)):
         if valor and utc(valor) > limite:
             raise HTTPException(status_code=422, detail=f"La fecha '{nombre}' no puede estar en el futuro")
@@ -89,18 +101,19 @@ def validar_rango_fechas(desde: Optional[datetime], hasta: Optional[datetime]):
 
 @router.get("/api/events", response_model=list[EventOut], summary="Consultar eventos con filtros")
 def listar_eventos(
-    desde: Optional[datetime] = Query(None, description="Fecha inicial en UTC. Ej: 2026-09-27T00:00:00"),
-    hasta: Optional[datetime] = Query(None, description="Fecha final en UTC"),
-    vendor: Optional[Vendor] = Query(None, description="Filtrar por marca"),
-    device_id: Optional[int] = Query(None, description="Filtrar por equipo"),
-    severidad: Optional[int] = Query(None, ge=0, le=7, description="Solo esta severidad exacta"),
-    severidad_max: Optional[int] = Query(None, ge=0, le=7,
-                                         description="Desde 0 hasta este valor. Ej: 3 = Error o más grave"),
+    desde: datetime | None = Query(None, description="Fecha inicial en UTC. Ej: 2026-09-27T00:00:00"),
+    hasta: datetime | None = Query(None, description="Fecha final en UTC"),
+    vendor: Vendor | None = Query(None, description="Filtrar por marca"),
+    device_id: int | None = Query(None, description="Filtrar por equipo"),
+    severidad: int | None = Query(None, ge=0, le=7, description="Solo esta severidad exacta"),
+    severidad_max: int | None = Query(
+        None, ge=0, le=7, description="Desde 0 hasta este valor. Ej: 3 = Error o más grave"
+    ),
     solo_sospechosos: bool = Query(False, description="Solo mensajes marcados como sospechosos"),
     limite: int = Query(100, ge=1, le=1000),
     db: Session = Depends(get_db),
 ):
-   
+    """Eventos con filtros de fecha, marca, equipo, severidad y sospechosos (sin fechas futuras)."""
     validar_rango_fechas(desde, hasta)
     consulta = db.query(SyslogEvent)
     if desde:
@@ -122,16 +135,25 @@ def listar_eventos(
 
 @router.get("/api/events/stats", summary="Resumen de eventos por severidad")
 def estadisticas(db: Session = Depends(get_db)):
-    filas = (db.query(SyslogEvent.severity, func.count(SyslogEvent.id), func.sum(SyslogEvent.repeat_count))
-             .group_by(SyslogEvent.severity).all())
+    """Cuántos eventos y mensajes hay por severidad, cuántos críticos y cuántos sospechosos."""
+    filas = (
+        db.query(SyslogEvent.severity, func.count(SyslogEvent.id), func.sum(SyslogEvent.repeat_count))
+        .group_by(SyslogEvent.severity)
+        .all()
+    )
     conteo = {sev: (eventos, mensajes or 0) for sev, eventos, mensajes in filas}
     por_severidad = [
-        {"severidad": s, "nombre": SEVERIDADES[s],
-         "eventos": conteo.get(s, (0, 0))[0], "mensajes": conteo.get(s, (0, 0))[1]}
+        {
+            "severidad": s,
+            "nombre": SEVERIDADES[s],
+            "eventos": conteo.get(s, (0, 0))[0],
+            "mensajes": conteo.get(s, (0, 0))[1],
+        }
         for s in range(8)
     ]
-    sospechosos = (db.query(func.count(SyslogEvent.id))
-                   .filter(SyslogEvent.flagged_suspicious.is_(True)).scalar())
+    sospechosos = (
+        db.query(func.count(SyslogEvent.id)).filter(SyslogEvent.flagged_suspicious.is_(True)).scalar()
+    )
     return {
         "total_eventos": sum(f["eventos"] for f in por_severidad),
         "total_mensajes": sum(f["mensajes"] for f in por_severidad),

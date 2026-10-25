@@ -3,6 +3,7 @@ Configuración central del proyecto.
 Toda la configuración sensible viene de variables de entorno (.env),
 nunca escrita directamente en el código.
 """
+
 import os
 from pathlib import Path
 
@@ -23,7 +24,7 @@ def _normalizar(url: str) -> str:
     indique el controlador: 'postgresql+psycopg://'."""
     for prefijo in ("postgres://", "postgresql://"):
         if url.startswith(prefijo):
-            return "postgresql+psycopg://" + url[len(prefijo):]
+            return "postgresql+psycopg://" + url[len(prefijo) :]
     return url
 
 
@@ -31,6 +32,6 @@ def _normalizar(url: str) -> str:
 DATABASE_URL = _normalizar(os.getenv("DATABASE_URL", "").strip()) or SQLITE_URL
 
 APP_NAME = "NOC Syslog Inteligente"
-APP_VERSION = "1.0.0"
+APP_VERSION = "1.0.1"
 
 # --- FIN DEL ARCHIVO ---

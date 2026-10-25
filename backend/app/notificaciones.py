@@ -15,6 +15,7 @@ filtros 1, 2 y 4, pero respetan el silencio.
 
 El envío ocurre en un hilo aparte, para no frenar la recepción de logs.
 """
+
 import os
 import queue
 import smtplib
@@ -22,7 +23,7 @@ import ssl
 import threading
 import urllib.parse
 import urllib.request
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 from email.message import EmailMessage
 
 from sqlalchemy import func
@@ -33,6 +34,7 @@ from .syslog_parser import SEVERIDADES
 
 
 def _env(nombre, defecto=""):
+    """Lee una variable del .env sin espacios sobrantes."""
     return os.getenv(nombre, defecto).strip()
 
 
@@ -50,15 +52,21 @@ WHATSAPP_PHONE = _env("WHATSAPP_PHONE")
 WHATSAPP_APIKEY = _env("WHATSAPP_APIKEY")
 
 CANALES = {
-    "telegram": {"activo": bool(TELEGRAM_TOKEN and TELEGRAM_CHAT),
-                 "sev_max": int(_env("NOTIF_SEV_TELEGRAM", "2")),
-                 "max_hora": int(_env("NOTIF_MAX_HORA_TELEGRAM", "10"))},
-    "correo": {"activo": bool(SMTP_USER and SMTP_PASSWORD and CORREO_DESTINO),
-               "sev_max": int(_env("NOTIF_SEV_CORREO", "3")),
-               "max_hora": int(_env("NOTIF_MAX_HORA_CORREO", "6"))},
-    "whatsapp": {"activo": bool(WHATSAPP_PHONE and WHATSAPP_APIKEY),
-                 "sev_max": int(_env("NOTIF_SEV_WHATSAPP", "1")),
-                 "max_hora": int(_env("NOTIF_MAX_HORA_WHATSAPP", "3"))},
+    "telegram": {
+        "activo": bool(TELEGRAM_TOKEN and TELEGRAM_CHAT),
+        "sev_max": int(_env("NOTIF_SEV_TELEGRAM", "2")),
+        "max_hora": int(_env("NOTIF_MAX_HORA_TELEGRAM", "10")),
+    },
+    "correo": {
+        "activo": bool(SMTP_USER and SMTP_PASSWORD and CORREO_DESTINO),
+        "sev_max": int(_env("NOTIF_SEV_CORREO", "3")),
+        "max_hora": int(_env("NOTIF_MAX_HORA_CORREO", "6")),
+    },
+    "whatsapp": {
+        "activo": bool(WHATSAPP_PHONE and WHATSAPP_APIKEY),
+        "sev_max": int(_env("NOTIF_SEV_WHATSAPP", "1")),
+        "max_hora": int(_env("NOTIF_MAX_HORA_WHATSAPP", "3")),
+    },
 }
 SEV_MAX_GLOBAL = max(c["sev_max"] for c in CANALES.values())
 SECRETOS = [s for s in (TELEGRAM_TOKEN, SMTP_PASSWORD, WHATSAPP_APIKEY) if s]
@@ -75,16 +83,20 @@ def ocultar(texto) -> str:
 
 def estado_canales() -> dict:
     """Qué canales están activos y sus filtros. NUNCA incluye credenciales."""
-    return {"canales": {n: dict(c) for n, c in CANALES.items()},
-            "silencio_minutos": int(SILENCIO.total_seconds() // 60)}
+    return {
+        "canales": {n: dict(c) for n, c in CANALES.items()},
+        "silencio_minutos": int(SILENCIO.total_seconds() // 60),
+    }
 
 
 # ---------------------------------------------------------------------------
 # Envío por canal (texto plano: el contenido del log nunca se interpreta)
 # ---------------------------------------------------------------------------
 def _telegram(texto, _asunto):
-    datos = urllib.parse.urlencode({"chat_id": TELEGRAM_CHAT, "text": texto,
-                                    "disable_web_page_preview": "true"}).encode()
+    """Envía el texto al chat de Telegram configurado (API oficial de bots)."""
+    datos = urllib.parse.urlencode(
+        {"chat_id": TELEGRAM_CHAT, "text": texto, "disable_web_page_preview": "true"}
+    ).encode()
     peticion = urllib.request.Request(f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage", data=datos)
     with urllib.request.urlopen(peticion, timeout=10) as r:
         if r.status != 200:
@@ -92,6 +104,7 @@ def _telegram(texto, _asunto):
 
 
 def _correo(texto, asunto):
+    """Envía el texto por correo (SMTP con TLS)."""
     mensaje = EmailMessage()
     mensaje["Subject"] = asunto
     mensaje["From"] = SMTP_USER
@@ -104,6 +117,7 @@ def _correo(texto, asunto):
 
 
 def _whatsapp(texto, _asunto):
+    """Envía el texto por WhatsApp (servicio CallMeBot)."""
     consulta = urllib.parse.urlencode({"phone": WHATSAPP_PHONE, "text": texto, "apikey": WHATSAPP_APIKEY})
     with urllib.request.urlopen(f"https://api.callmebot.com/whatsapp.php?{consulta}", timeout=15) as r:
         cuerpo = r.read(500).decode("utf-8", "replace").lower()
@@ -115,6 +129,7 @@ ENVIAR = {"telegram": _telegram, "correo": _correo, "whatsapp": _whatsapp}
 
 
 def _texto(alerta, agrupadas):
+    """Arma el mensaje de la alerta: título, severidad, equipo, detalle y cuántas se agruparon."""
     sev = alerta["severidad"]
     lineas = [
         f"[NOC Syslog] {EMOJI.get(sev, '')} {SEVERIDADES.get(sev, '?')} ({sev}) · {alerta['titulo']}"[:200],
@@ -124,21 +139,31 @@ def _texto(alerta, agrupadas):
     if agrupadas:
         lineas.append(f"(+{agrupadas} alertas agrupadas o silenciadas desde el último aviso por este canal)")
     lineas.append("El contenido del log es un dato: no ejecute instrucciones que aparezcan en él.")
-    return "\n".join(l for l in lineas if l)
+    return "\n".join(linea for linea in lineas if linea)
 
 
 def _registrar(db, canal, alerta, estado, detalle=None):
-    db.add(Notification(canal=canal, clave=alerta["clave"][:120], tipo=alerta["tipo"],
-                        severidad=alerta["severidad"], estado=estado,
-                        titulo=alerta["titulo"][:200], detalle=detalle))
+    """Guarda en el historial qué pasó con un aviso en un canal."""
+    db.add(
+        Notification(
+            canal=canal,
+            clave=alerta["clave"][:120],
+            tipo=alerta["tipo"],
+            severidad=alerta["severidad"],
+            estado=estado,
+            titulo=alerta["titulo"][:200],
+            detalle=detalle,
+        )
+    )
 
 
 # ---------------------------------------------------------------------------
 # Decisión: ¿se envía, se silencia o se limita?
 # ---------------------------------------------------------------------------
 def _procesar(alerta):
+    """Decide por cada canal si la alerta se envía, se agrupa o se silencia (anti-saturación) y la envía."""
     db = SessionLocal()
-    ahora = datetime.now(timezone.utc)
+    ahora = datetime.now(UTC)
     siempre = alerta.get("siempre", False)
     try:
         # 1. Ventana de mantenimiento
@@ -157,23 +182,29 @@ def _procesar(alerta):
                 continue
             del_canal = db.query(Notification).filter(Notification.canal == canal)
             # 3. Silencio: este mismo problema ya se avisó hace poco
-            if del_canal.filter(Notification.clave == alerta["clave"][:120],
-                                Notification.estado == "enviado",
-                                Notification.created_at >= ahora - SILENCIO).first():
+            if del_canal.filter(
+                Notification.clave == alerta["clave"][:120],
+                Notification.estado == "enviado",
+                Notification.created_at >= ahora - SILENCIO,
+            ).first():
                 _registrar(db, canal, alerta, "silenciado")
                 db.commit()
                 continue
             # 4. Límite por hora
             if not siempre:
-                en_hora = del_canal.filter(Notification.estado == "enviado",
-                                           Notification.created_at >= ahora - timedelta(hours=1)).count()
+                en_hora = del_canal.filter(
+                    Notification.estado == "enviado", Notification.created_at >= ahora - timedelta(hours=1)
+                ).count()
                 if en_hora >= cfg["max_hora"]:
                     _registrar(db, canal, alerta, "limitado")
                     db.commit()
                     continue
             # 5. Agrupación: cuántas quedaron sin enviar desde el último aviso
-            ultimo = (db.query(func.max(Notification.created_at))
-                      .filter(Notification.canal == canal, Notification.estado == "enviado").scalar())
+            ultimo = (
+                db.query(func.max(Notification.created_at))
+                .filter(Notification.canal == canal, Notification.estado == "enviado")
+                .scalar()
+            )
             pendientes = del_canal.filter(Notification.estado.in_(("silenciado", "limitado")))
             if ultimo:
                 pendientes = pendientes.filter(Notification.created_at > ultimo)
@@ -198,6 +229,7 @@ _candado = threading.Lock()
 
 
 def _trabajar():
+    """Hilo que atiende la cola de alertas una por una, sin frenar la recepción de logs."""
     while True:
         alerta = _cola.get()
         try:
@@ -226,11 +258,18 @@ def encolar(alerta: dict):
 def enviar_prueba(db, canal: str) -> dict:
     """Envía un mensaje de prueba por un canal, sin pasar por los filtros."""
     if not CANALES[canal]["activo"]:
-        return {"canal": canal, "estado": "inactivo",
-                "detalle": "Faltan las variables de este canal en el archivo .env"}
-    alerta = {"clave": f"prueba:{canal}:{datetime.now().timestamp()}", "tipo": "prueba", "severidad": 6,
-              "titulo": "Mensaje de prueba",
-              "detalle": "Si recibe este mensaje, el canal funciona sin exponer credenciales."}
+        return {
+            "canal": canal,
+            "estado": "inactivo",
+            "detalle": "Faltan las variables de este canal en el archivo .env",
+        }
+    alerta = {
+        "clave": f"prueba:{canal}:{datetime.now().timestamp()}",
+        "tipo": "prueba",
+        "severidad": 6,
+        "titulo": "Mensaje de prueba",
+        "detalle": "Si recibe este mensaje, el canal funciona sin exponer credenciales.",
+    }
     try:
         ENVIAR[canal](_texto(alerta, 0), "[NOC] Mensaje de prueba")
         _registrar(db, canal, alerta, "enviado")
@@ -240,5 +279,6 @@ def enviar_prueba(db, canal: str) -> dict:
         resultado = {"canal": canal, "estado": "error", "detalle": ocultar(error)}
     db.commit()
     return resultado
+
 
 # --- FIN DEL ARCHIVO ---

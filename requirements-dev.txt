@@ -1,0 +1,3 @@
+# Herramientas de calidad de código (solo para desarrollo, v1.0.1)
+-r requirements.txt
+ruff>=0.6
