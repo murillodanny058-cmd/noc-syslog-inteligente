@@ -168,6 +168,8 @@ def consola_lista_para(device_id: int):
     """Devuelve un motivo (texto) si la consola real NO está lista para ese equipo; None si está lista."""
     if not CONSOLA.conectado or not CONSOLA.equipo or CONSOLA.equipo["id"] != device_id:
         return "Conecte primero este equipo en la pestaña Consola (modo Equipo REAL)."
+    if getattr(CONSOLA, "incompatible", None):  # v1.0.0
+        return CONSOLA.incompatible
     if CONSOLA.login_requerido:
         return "El equipo está pidiendo usuario o contraseña."
     if CONSOLA.prompt and CONSOLA.prompt.rstrip().endswith(">") and not CONSOLA.prompt.startswith("<"):

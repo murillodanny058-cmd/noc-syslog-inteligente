@@ -2,6 +2,43 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es/).
 
+## [1.0.0] - 2026-10-24 — Herramienta madura y marcha blanca
+
+### Fase 12 — Agente auditor de usuarios con Hermes Agent
+- Registro de la actividad de cada usuario (tabla `actividad`), incluidos los intentos sin permiso.
+- Sesiones de LOGIN a LOGOUT con hallazgos por reglas (riesgo bajo, medio o alto).
+- Informe redactado por **Hermes Agent (Nous Research)** por su API Server local; alternativas Claude o
+  Gemini; modo por reglas si no hay IA. Pestaña "Auditoría IA" solo para el administrador.
+- El agente solo lee y las instrucciones escondidas en los registros se le ocultan.
+
+### Correcciones de la marcha blanca
+- La consola real se reactiva sola cuando el equipo cierra la sesión por inactividad.
+- El NOC reconoce la marca del equipo por el prompt y bloquea si no coincide con el equipo elegido.
+- Aviso cuando no hay equipos reales registrados en lugar de elegir otro en silencio.
+- "Proponer cambio" ya no permite doble envío.
+- Eventos: no se permiten fechas futuras ni rango invertido (navegador y servidor).
+- `.gitignore` limpio.
+
+### Fase 11 — Cambios con aprobación humana
+- Catálogo cerrado (envío de logs, descripción y estado de puerto), vista previa, separación de funciones,
+  respaldo, ejecución por consola, rollback automático, verificación y deshacer. Alerta "cambio pendiente".
+
+### Fase 10 — Puertos por evento
+- Puerto de cada evento (botón 🔌), estado, VLAN, vecino CDP/LLDP y MAC; lectura por consola real.
+
+### Fase 9 — Consola real por cable de consola
+- Conexión por puerto COM sin IP, comandos de solo lectura, logs de la consola como eventos reales.
+- Script `iniciar_noc.bat`.
+
+### Fases 7 y 8
+- PostgreSQL en la nube (Neon), usuarios con roles, sesiones seguras y bloqueo por fuerza bruta.
+- Notificaciones por Telegram y correo con anti-saturación.
+
+### Pruebas y operación
+- `pruebas_v1`: 31 pruebas automáticas (funcionales, seguridad, carga y respaldo).
+- `respaldo`: exportar y recuperar la base. Bitácora de marcha blanca, procedimiento de despliegue y
+  rollback, manual técnico y guion de sustentación.
+
 ## [0.2.0] - 2026-09-28 — MVP
 
 ### Fase 6 — Política de defensa ante IA y cierre

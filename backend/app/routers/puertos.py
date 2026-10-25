@@ -60,6 +60,8 @@ def actualizar_puertos(device_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=409,
                             detail=f"Para leer los puertos de {equipo.name}, conéctelo primero en la "
                                    "pestaña Consola (modo Equipo REAL).")
+    if getattr(CONSOLA, "incompatible", None):  # v1.0.0
+        raise HTTPException(status_code=409, detail=CONSOLA.incompatible)
     if CONSOLA.login_requerido:
         raise HTTPException(status_code=409, detail="El equipo está pidiendo usuario o contraseña.")
     comandos = COMANDOS_PUERTOS.get(equipo.vendor)

@@ -5,7 +5,7 @@ a acciones de agentes de inteligencia artificial.
 
 > Proyecto académico · Administración y Gestión de Redes · 2026-2
 > **Autor:** Dany Murillo · **Docente:** Ing. John Harold Pérez Calderón
-> **Versión:** v0.2.0 (MVP) · ⚠️ Todos los equipos, IP y eventos son **SIMULADOS** (IP RFC 5737).
+> **Versión:** v1.0.0 (marcha blanca) · ⚠️ Todos los equipos, IP y eventos son **SIMULADOS** (IP RFC 5737).
 
 ![Dashboard](docs/evidencias/C46_fase4_resumen.png)
 
@@ -50,7 +50,7 @@ Abra http://127.0.0.1:8000/ (dashboard) o http://127.0.0.1:8000/docs (API).
 
 ## Tecnologías
 
-Python · FastAPI · SQLAlchemy · SQLite · HTML, CSS y JavaScript (sin frameworks) · Git y GitHub
+Python · FastAPI · SQLAlchemy · PostgreSQL (Neon) / SQLite · pyserial · Hermes Agent · HTML, CSS y JavaScript (sin frameworks) · Git y GitHub
 
 ## Documentación
 
@@ -64,6 +64,11 @@ Python · FastAPI · SQLAlchemy · SQLite · HTML, CSS y JavaScript (sin framewo
 | [Política de defensa ante IA](docs/06_politica_defensa_ia.md) | Reglas, controles y respuesta |
 | [Manual de usuario](docs/07_manual_usuario.md) | Instalación y uso paso a paso |
 | [Índice de evidencias](docs/08_indice_evidencias.md) | Capturas C01 a C71 |
+| [Bitácora de marcha blanca](docs/09_bitacora_marcha_blanca.md) | Pruebas con equipo real y hallazgos |
+| [Pruebas v1.0.0](docs/10_pruebas_v1.md) | Funcionales, seguridad, carga, respaldo y recuperación |
+| [Despliegue y rollback](docs/11_despliegue_rollback.md) | Instalar, actualizar y volver atrás |
+| [Manual técnico](docs/12_manual_tecnico.md) | Arquitectura, código, variables y seguridad |
+| [Guion de sustentación](docs/13_guion_sustentacion.md) | Qué mostrar en el Corte 3 |
 | [Registro de cambios](CHANGELOG.md) | Historial por versión |
 
 ## Versiones
@@ -72,6 +77,6 @@ Python · FastAPI · SQLAlchemy · SQLite · HTML, CSS y JavaScript (sin framewo
 |---|---|---|
 | Inicio | v0.1.0 alfa | ✅ Entregada |
 | Corte 2 | v0.2.0 MVP | ✅ Entregada |
-| Corte 3 | v1.0.0 | ⏳ Marcha blanca, seguridad y despliegue |
+| Corte 3 | v1.0.0 | ✅ Marcha blanca, seguridad y despliegue |
 
 <!-- FIN README -->

@@ -93,10 +93,25 @@ RE_LOG_CISCO = re.compile(r"%([A-Z0-9_]+)-([0-7])-([A-Z0-9_]+):")
 RE_LOG_HUAWEI = re.compile(r"%%\d*([A-Z0-9_]+)/([0-7])/([A-Z0-9_]+)")
 RE_CTRL_ANSI = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]")
 RE_BORRADO = re.compile(r"\x08+ *\x08*")
+# v1.0.0: el equipo cerró la sesión de consola por inactividad (exec-timeout)
+RE_SESION_CERRADA = re.compile(r"press return to get started|con0 is now available", re.IGNORECASE)
 
 
 def _ahora():
     return datetime.now(timezone.utc)
+
+
+def marca_por_prompt(prompt: str):
+    """v1.0.0: reconoce la marca por el prompt.
+    <HUAWEI> o [HUAWEI] = Huawei · 'FGT60E #' = Fortinet · Switch> o Switch# = Cisco."""
+    p = (prompt or "").strip()
+    if p.startswith(("<", "[")):
+        return "Huawei"
+    if re.search(r"\s[#$]$", p):
+        return "Fortinet"
+    if re.fullmatch(r"[A-Za-z0-9][\w.\-/]*(?:\([\w.\-/ ]*\))?[#>]", p):
+        return "Cisco"
+    return None
 
 
 def disponible() -> bool:
@@ -159,6 +174,8 @@ class ConsolaSerial:
                 "eventos_capturados": self.eventos_capturados,
                 "conectado_desde": self.conectado_desde,
                 "ultimo_error": self.ultimo_error,
+                "marca_detectada": getattr(self, "marca_detectada", None),
+                "incompatible": getattr(self, "incompatible", None),
                 "ultimo": self.contador,
                 "lineas": nuevas[-200:],
             }
@@ -195,6 +212,9 @@ class ConsolaSerial:
             self.login_requerido = False
             self.eventos_capturados = 0
             self.ultimo_error = None
+            self.dormida = False          # v1.0.0
+            self.incompatible = None      # v1.0.0
+            self.marca_detectada = None   # v1.0.0
             self.conectado_desde = _ahora().isoformat()
             self._activo = True
             self._hilo = threading.Thread(target=self._leer, name="consola-serial", daemon=True)
@@ -218,6 +238,9 @@ class ConsolaSerial:
         if not self.prompt and not self.login_requerido:
             self._agregar("⚠ El equipo no respondió. Revise que el COM sea el del cable de consola "
                           "(no Bluetooth), que el equipo esté encendido y que la velocidad sea 9600.", "error")
+            return self.estado()
+        self._verificar_marca()  # v1.0.0: ¿el equipo del cable es el que se eligió?
+        if self.incompatible:
             return self.estado()
         self._preparar_sesion()
         return self.estado()
@@ -313,6 +336,8 @@ class ConsolaSerial:
             if self._captura is not None:
                 self._captura.append("")
             return
+        if RE_SESION_CERRADA.search(linea):  # v1.0.0: el equipo cerró la sesión
+            self.dormida = True
         sev = severidad_de_log(linea)
         if sev is not None:
             self._ingerir_log(linea, sev)
@@ -329,6 +354,8 @@ class ConsolaSerial:
         """Envía el log de la consola al motor de ingesta como evento REAL del equipo."""
         if not self.equipo:
             return
+        if getattr(self, "incompatible", None):
+            return  # v1.0.0: no se guardan logs a nombre de otro equipo
         raw = f"<{FACILITY_CONSOLA * 8 + severidad}>{linea.lstrip()}"
         db = SessionLocal()
         try:
@@ -341,7 +368,45 @@ class ConsolaSerial:
             db.close()
 
     # ------------------------------------------------------------ comandos
+    def _verificar_marca(self):
+        """v1.0.0: compara la marca que muestra el prompt con la del equipo elegido."""
+        self.marca_detectada = marca_por_prompt(self.prompt) if self.prompt else None
+        elegida = self.equipo["vendor"] if self.equipo else None
+        if self.marca_detectada and elegida and self.marca_detectada != elegida:
+            self.incompatible = (
+                f"El equipo conectado parece {self.marca_detectada} (prompt {self.prompt.strip()}), pero "
+                f"eligió {self.equipo['name']} ({elegida}). Desconecte y elija el equipo correcto; si no "
+                "aparece, regístrelo en Inventario con Tipo: Real. Mientras tanto no se envían comandos "
+                "ni se guardan logs, para no mezclar equipos.")
+            self._agregar("⚠ " + self.incompatible, "error")
+
+    def _despertar(self):
+        """v1.0.0: el equipo cerró la sesión por inactividad ('Press RETURN to get started')."""
+        self.dormida = False
+        with self._lock_cmd:
+            self._listo.clear()
+            self._escribir("\r")
+            self._listo.wait(3)
+        self._agregar("(La consola estaba inactiva: el NOC la reactivó con Enter. Si el prompt "
+                      "volvió a '>', los cambios necesitan modo '#')", "info")
+        vendor = self.equipo["vendor"] if self.equipo else None
+        if vendor in SIN_PAGINACION:
+            self._enviar_una_vez(SIN_PAGINACION[vendor], 4)
+
     def _enviar_y_esperar(self, comando: str, espera: float = TIEMPO_COMANDO):
+        """Envía UN comando ya validado y devuelve (salida, completo).
+        v1.0.0: si la consola se 'durmió', la reactiva y reintenta UNA vez."""
+        if getattr(self, "incompatible", None):
+            return "⚠ " + self.incompatible, False
+        if getattr(self, "dormida", False):
+            self._despertar()
+        salida, completo = self._enviar_una_vez(comando, espera)
+        if not completo and not salida.strip() and self._activo:
+            self._despertar()
+            salida, completo = self._enviar_una_vez(comando, espera)
+        return salida, completo
+
+    def _enviar_una_vez(self, comando: str, espera: float = TIEMPO_COMANDO):
         """Envía UN comando ya validado y devuelve (salida, completo)."""
         with self._lock_cmd:
             self._captura = []

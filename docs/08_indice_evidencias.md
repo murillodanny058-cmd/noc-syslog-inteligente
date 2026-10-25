@@ -44,4 +44,17 @@ Las capturas están en `docs/evidencias/`. Numeración: C + número + fase + tem
 | C71             | 5    | Consola en celular                                                 |
 | C72 en adelante | 6    | Flujo de aprobación, suspensión del agente y tormenta (opcionales) |
 
+## Corte 3 — v1.0.0 (marcha blanca)
+
+| Evidencia | Fase | Qué demuestra |
+| --- | --- | --- |
+| Consola COM15 conectada | 9 | Switch Cisco real conectado por cable, sin IP |
+| `%LINK-3-UPDOWN Fa0/23` | 9 | Logs del equipo real capturados como eventos |
+| `enable` y `show running-config` bloqueados | 9 | Política de la consola real |
+| Puerto Fa0/23 y 27 interfaces | 10 | Puertos por evento y lectura por consola |
+| Cambios #3, #4 y #5 | 11 | Rechazo humano y rollback automático |
+| `/health` de Hermes e Informe #1 | 12 | Agente auditor con Hermes Agent |
+| `resultados_pruebas_v1.md` | v1.0.0 | 31 pruebas automáticas |
+| Bitácora | v1.0.0 | [09_bitacora_marcha_blanca.md](09_bitacora_marcha_blanca.md) |
+
 <!-- FIN ÍNDICE -->

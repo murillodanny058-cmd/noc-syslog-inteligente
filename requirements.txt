@@ -9,3 +9,5 @@ python-dotenv>=1.0
 psycopg[binary]>=3.2
 # Consola real por cable de consola (puerto COM / serial) - Fase 9
 pyserial>=3.5
+# Pruebas automáticas v1.0.0 (cliente de pruebas de FastAPI)
+httpx>=0.27

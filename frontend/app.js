@@ -300,7 +300,7 @@ function filaEvento(e) {
 /** No permitir fechas futuras en los filtros (el servidor también lo valida). */
 function limitarFechasEventos() {
   const ahora = new Date();
-  ahora.setMinutes(ahora.getMinutes() - ahora.getTimezoneOffset()); // a hora local
+  ahora.setMinutes(ahora.getMinutes() - ahora.getTimezoneOffset() + 5); // hora local + 5 min de tolerancia (igual que el servidor)
   const maximo = ahora.toISOString().slice(0, 16); // formato AAAA-MM-DDTHH:MM
   const form = $("#filtros-eventos");
   form.elements.desde.max = maximo;
@@ -654,3 +654,10 @@ async function iniciar() {
 }
 
 document.addEventListener("DOMContentLoaded", iniciar);
+
+// v1.0.0: recalcular el límite de fechas cada vez que se abre el calendario
+document.addEventListener("DOMContentLoaded", () => {
+  ["desde", "hasta"].forEach((campo) =>
+    $("#filtros-eventos").elements[campo].addEventListener("focus", limitarFechasEventos),
+  );
+});

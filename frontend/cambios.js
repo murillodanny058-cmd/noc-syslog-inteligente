@@ -79,6 +79,9 @@ async function vistaPreviaCambio() {
 
 async function proponerCambio(evento) {
   evento.preventDefault();
+  const boton = $("#form-cambio button[type=submit]");
+  if (boton.disabled) return; // v1.0.0: evita proponer dos veces con doble clic
+  boton.disabled = true;
   try {
     const c = await api("/changes", {
       method: "POST",
@@ -92,6 +95,8 @@ async function proponerCambio(evento) {
     await listarCambios();
   } catch (error) {
     aviso(error.message, "error");
+  } finally {
+    boton.disabled = false;
   }
 }
 

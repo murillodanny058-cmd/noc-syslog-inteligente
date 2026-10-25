@@ -250,6 +250,11 @@ async function cargarConsola() {
     (e) =>
       VENDORS_CONSOLA.includes(e.vendor) && Boolean(e.is_simulated) !== real,
   );
+  // v1.0.0: avisar en vez de elegir otro equipo en silencio
+  if (real && !compatibles.length)
+    aviso("No hay equipos REALES en el inventario. Regístrelo en Inventario con Tipo: Real (laboratorio).", "error");
+  else if (real && anterior && !compatibles.some((e) => String(e.id) === anterior))
+    aviso("Modo REAL: solo aparecen equipos registrados como Real. Si el suyo no está, regístrelo en Inventario.");
   select.innerHTML = "";
   compatibles.forEach((e) =>
     select.appendChild(

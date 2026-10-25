@@ -31,6 +31,6 @@ def _normalizar(url: str) -> str:
 DATABASE_URL = _normalizar(os.getenv("DATABASE_URL", "").strip()) or SQLITE_URL
 
 APP_NAME = "NOC Syslog Inteligente"
-APP_VERSION = "1.0.0-dev"
+APP_VERSION = "1.0.0"
 
 # --- FIN DEL ARCHIVO ---
