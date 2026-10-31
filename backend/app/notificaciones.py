@@ -13,7 +13,8 @@ Filtros, en este orden:
 Las alertas "siempre" (inyección, tormenta, agente suspendido) saltan los
 filtros 1, 2 y 4, pero respetan el silencio.
 
-El envío ocurre en un hilo aparte, para no frenar la recepción de logs.
+El envío ocurre en hilos aparte, para no frenar la recepción de logs.
+v1.1.0: un hilo y una cola POR CANAL: Telegram ya no espera a que termine el correo.
 """
 
 import os
@@ -21,6 +22,7 @@ import queue
 import smtplib
 import ssl
 import threading
+import time
 import urllib.parse
 import urllib.request
 from datetime import UTC, datetime, timedelta, timezone
@@ -159,100 +161,114 @@ def _registrar(db, canal, alerta, estado, detalle=None):
 
 # ---------------------------------------------------------------------------
 # Decisión: ¿se envía, se silencia o se limita?
+# v1.1.0 (hallazgo 2): cada canal tiene su PROPIA cola y su propio hilo.
+# Antes, un correo lento (SMTP tarda varios segundos) hacía esperar a Telegram.
 # ---------------------------------------------------------------------------
-def _procesar(alerta):
-    """Decide por cada canal si la alerta se envía, se agrupa o se silencia (anti-saturación) y la envía."""
+def _procesar_canal(canal, alerta):
+    """Decide para UN canal si la alerta se envía, se agrupa o se silencia (anti-saturación) y la envía."""
+    cfg = CANALES[canal]
+    siempre = alerta.get("siempre", False)
+    # 2. Severidad mínima del canal (antes de tocar la base: es lo más rápido)
+    if not siempre and alerta["severidad"] > cfg["sev_max"]:
+        return
     db = SessionLocal()
     ahora = datetime.now(UTC)
-    siempre = alerta.get("siempre", False)
     try:
         # 1. Ventana de mantenimiento
         if alerta.get("device_id") and not siempre:
             equipo = db.get(Device, alerta["device_id"])
             if equipo and equipo.status == "mantenimiento":
-                _registrar(db, "todos", alerta, "mantenimiento")
+                _registrar(db, canal, alerta, "mantenimiento")
                 db.commit()
                 return
-
-        for canal, cfg in CANALES.items():
-            if not cfg["activo"]:
-                continue
-            # 2. Severidad mínima del canal
-            if not siempre and alerta["severidad"] > cfg["sev_max"]:
-                continue
-            del_canal = db.query(Notification).filter(Notification.canal == canal)
-            # 3. Silencio: este mismo problema ya se avisó hace poco
-            if del_canal.filter(
-                Notification.clave == alerta["clave"][:120],
-                Notification.estado == "enviado",
-                Notification.created_at >= ahora - SILENCIO,
-            ).first():
-                _registrar(db, canal, alerta, "silenciado")
-                db.commit()
-                continue
-            # 4. Límite por hora
-            if not siempre:
-                en_hora = del_canal.filter(
-                    Notification.estado == "enviado", Notification.created_at >= ahora - timedelta(hours=1)
-                ).count()
-                if en_hora >= cfg["max_hora"]:
-                    _registrar(db, canal, alerta, "limitado")
-                    db.commit()
-                    continue
-            # 5. Agrupación: cuántas quedaron sin enviar desde el último aviso
-            ultimo = (
-                db.query(func.max(Notification.created_at))
-                .filter(Notification.canal == canal, Notification.estado == "enviado")
-                .scalar()
-            )
-            pendientes = del_canal.filter(Notification.estado.in_(("silenciado", "limitado")))
-            if ultimo:
-                pendientes = pendientes.filter(Notification.created_at > ultimo)
-            texto = _texto(alerta, pendientes.count())
-            asunto = f"[NOC] {SEVERIDADES.get(alerta['severidad'], '?')}: {alerta['titulo']}"[:150]
-            try:
-                ENVIAR[canal](texto, asunto)
-                _registrar(db, canal, alerta, "enviado")
-            except Exception as error:
-                _registrar(db, canal, alerta, "error", ocultar(error))
+        del_canal = db.query(Notification).filter(Notification.canal == canal)
+        # 3. Silencio: este mismo problema ya se avisó hace poco
+        if del_canal.filter(
+            Notification.clave == alerta["clave"][:120],
+            Notification.estado == "enviado",
+            Notification.created_at >= ahora - SILENCIO,
+        ).first():
+            _registrar(db, canal, alerta, "silenciado")
             db.commit()
+            return
+        # 4. Límite por hora
+        if not siempre:
+            en_hora = del_canal.filter(
+                Notification.estado == "enviado", Notification.created_at >= ahora - timedelta(hours=1)
+            ).count()
+            if en_hora >= cfg["max_hora"]:
+                _registrar(db, canal, alerta, "limitado")
+                db.commit()
+                return
+        # 5. Agrupación: cuántas quedaron sin enviar desde el último aviso
+        ultimo = (
+            db.query(func.max(Notification.created_at))
+            .filter(Notification.canal == canal, Notification.estado == "enviado")
+            .scalar()
+        )
+        pendientes = del_canal.filter(Notification.estado.in_(("silenciado", "limitado")))
+        if ultimo:
+            pendientes = pendientes.filter(Notification.created_at > ultimo)
+        texto = _texto(alerta, pendientes.count())
+        asunto = f"[NOC] {SEVERIDADES.get(alerta['severidad'], '?')}: {alerta['titulo']}"[:150]
+        try:
+            ENVIAR[canal](texto, asunto)
+            # v1.1.0: cuánto tardó el aviso desde que ocurrió el evento (evidencia del hallazgo 2)
+            demora = time.monotonic() - alerta.get("_creada", time.monotonic())
+            _registrar(db, canal, alerta, "enviado", f"Entregado en {demora:.1f} s")
+        except Exception as error:
+            _registrar(db, canal, alerta, "error", ocultar(error))
+        db.commit()
     finally:
         db.close()
 
 
+def _procesar(alerta):
+    """Compatibilidad: procesa la alerta en todos los canales activos, uno tras otro."""
+    for canal, cfg in CANALES.items():
+        if cfg["activo"]:
+            _procesar_canal(canal, alerta)
+
+
 # ---------------------------------------------------------------------------
-# Cola y hilo de envío
+# Colas y hilos de envío: UNO POR CANAL (Telegram no espera al correo)
 # ---------------------------------------------------------------------------
-_cola = queue.Queue(maxsize=500)
-_hilo = None
+_colas = {canal: queue.Queue(maxsize=500) for canal in CANALES}
+_hilos: dict = {}
 _candado = threading.Lock()
 
 
-def _trabajar():
-    """Hilo que atiende la cola de alertas una por una, sin frenar la recepción de logs."""
+def _trabajar(canal):
+    """Hilo de un canal: atiende su cola una alerta a la vez, sin frenar la recepción de logs."""
+    cola = _colas[canal]
     while True:
-        alerta = _cola.get()
+        alerta = cola.get()
         try:
-            _procesar(alerta)
+            _procesar_canal(canal, alerta)
         except Exception as error:
-            print(f"[NOTIFICACIONES] Error: {ocultar(error)}")
+            print(f"[NOTIFICACIONES] Error en {canal}: {ocultar(error)}")
         finally:
-            _cola.task_done()
+            cola.task_done()
 
 
 def encolar(alerta: dict):
-    """Agrega una alerta a la cola. Nunca frena ni hace fallar la ingesta."""
-    if not any(c["activo"] for c in CANALES.values()):
-        return
-    global _hilo
-    with _candado:
-        if _hilo is None or not _hilo.is_alive():
-            _hilo = threading.Thread(target=_trabajar, daemon=True, name="notificaciones")
-            _hilo.start()
-    try:
-        _cola.put_nowait(alerta)
-    except queue.Full:
-        pass  # si la cola se llena (tormenta extrema), se descarta: el evento ya está en la BD
+    """Pone la alerta en la cola de cada canal activo. Nunca frena ni hace fallar la ingesta."""
+    alerta = {**alerta, "_creada": time.monotonic()}
+    for canal, cfg in CANALES.items():
+        if not cfg["activo"]:
+            continue
+        if not alerta.get("siempre") and alerta["severidad"] > cfg["sev_max"]:
+            continue  # ni siquiera se encola: este canal no la enviaría
+        with _candado:
+            hilo = _hilos.get(canal)
+            if hilo is None or not hilo.is_alive():
+                hilo = threading.Thread(target=_trabajar, args=(canal,), daemon=True, name=f"notif-{canal}")
+                _hilos[canal] = hilo
+                hilo.start()
+        try:
+            _colas[canal].put_nowait(alerta)
+        except queue.Full:
+            pass  # si la cola se llena (tormenta extrema), se descarta: el evento ya está en la BD
 
 
 def enviar_prueba(db, canal: str) -> dict:

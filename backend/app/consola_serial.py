@@ -22,12 +22,14 @@ SEGURIDAD:
   - Solo un usuario a la vez puede tener abierto el puerto (igual que PuTTY).
 """
 
+import os
 import re
 import threading
 import time
 from collections import deque
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
+from . import vigilancia  # v1.1.0: equipos caídos
 from .console_sim import ALIAS, BLOQUEADOS, CARACTERES_PROHIBIDOS, PATRON_FILTRO
 from .database import SessionLocal
 from .ingest import ingerir
@@ -47,6 +49,11 @@ VELOCIDADES = (9600, 19200, 38400, 57600, 115200)
 TIEMPO_COMANDO = 12  # segundos máximos esperando la respuesta de un comando
 MAX_SALIDA = 30000  # caracteres máximos que se devuelven por comando
 FACILITY_CONSOLA = 23  # local7, la que usan por defecto Cisco y Huawei
+# v1.1.0 (hallazgo 3): "latido". Si la consola lleva LATIDO_SEG segundos en silencio, el NOC envía
+# un Enter; si el equipo no contesta LATIDO_FALLOS veces seguidas, se declara CAÍDO.
+LATIDO_SEG = max(10, int(os.getenv("NOC_LATIDO_SEG", "20")))
+LATIDO_FALLOS = max(1, int(os.getenv("NOC_LATIDO_FALLOS", "2")))
+LATIDO_ESPERA = 5  # segundos que se espera la respuesta a cada Enter
 
 # Comandos de SOLO LECTURA permitidos en equipos REALES
 PERMITIDOS_REAL = {
@@ -112,7 +119,10 @@ RE_PROMPT = re.compile(
 RE_LOGIN = re.compile(r"(?i)(user ?name|login|password|contrase\w*)\s*:\s*$")
 RE_MORE = re.compile(r"\s*-+ ?\(?more\)?[^\n]*?-+\s*|\s*--More--\s*", re.IGNORECASE)
 RE_LOG_CISCO = re.compile(r"%([A-Z0-9_]+)-([0-7])-([A-Z0-9_]+):")
-RE_LOG_HUAWEI = re.compile(r"%%\d*([A-Z0-9_]+)/([0-7])/([A-Z0-9_]+)")
+# v1.0.3: también los traps sin "%%" (ej. "IFNET/1/IF_LINKDOWN:OID ...", severidad 1)
+RE_LOG_HUAWEI = re.compile(
+    r"(?:%%\d*|(?<=\s))([A-Z][A-Z0-9_]+)/([0-7])/([A-Z][A-Z0-9_]+)(?:\([^)]*\))?(?:\[\d+\])?:"
+)
 RE_CTRL_ANSI = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]")
 RE_BORRADO = re.compile(r"\x08+ *\x08*")
 # v1.0.0: el equipo cerró la sesión de consola por inactividad (exec-timeout)
@@ -181,6 +191,11 @@ class ConsolaSerial:
         self.eventos_capturados = 0
         self.conectado_desde = None
         self.ultimo_error = None
+        self._ultimo_dato = 0.0  # v1.1.0: cuándo llegó el último byte del equipo (time.monotonic)
+        self._ultimo_latido = 0.0
+        self._fallos_latido = 0
+        self._en_latido = False
+        self.caido_desde = None  # v1.1.0: hora en que el equipo dejó de responder
 
     # ------------------------------------------------------------------ estado
     @property
@@ -207,6 +222,8 @@ class ConsolaSerial:
                 "ultimo_error": self.ultimo_error,
                 "marca_detectada": getattr(self, "marca_detectada", None),
                 "incompatible": getattr(self, "incompatible", None),
+                "caido_desde": self.caido_desde,  # v1.1.0
+                "latido_seg": LATIDO_SEG,
                 "ultimo": self.contador,
                 "lineas": nuevas[-200:],
             }
@@ -261,9 +278,15 @@ class ConsolaSerial:
             self.incompatible = None  # v1.0.0
             self.marca_detectada = None  # v1.0.0
             self.conectado_desde = _ahora().isoformat()
+            # v1.1.0: si el equipo ya estaba caído (de una conexión anterior), se recuerda
+            caido = vigilancia.CAIDOS.get(equipo.id)
+            self.caido_desde = caido["desde"].isoformat() if caido else None
+            self._ultimo_dato = self._ultimo_latido = time.monotonic()
+            self._fallos_latido = 0
             self._activo = True
             self._hilo = threading.Thread(target=self._leer, name="consola-serial", daemon=True)
             self._hilo.start()
+            threading.Thread(target=self._vigia, name="consola-latido", daemon=True).start()
 
         self._agregar(
             f"*** Consola REAL abierta en {puerto} a {velocidad} baudios · "
@@ -358,9 +381,92 @@ class ConsolaSerial:
                     self._agregar(self.ultimo_error, "error")
                     self._activo = False
                     self._listo.set()
+                    threading.Thread(target=self._cable_perdido, daemon=True).start()  # v1.1.0
                 break
             if datos:
+                self._ultimo_dato = time.monotonic()  # v1.1.0: el equipo está vivo
+                if self.caido_desde:
+                    self._recuperado()
                 self._procesar(datos.decode("utf-8", errors="replace"))
+
+    # ------------------------------------------------- v1.1.0: equipo caído
+    def _vigia(self):
+        """Hilo del latido: si la consola está en silencio, envía un Enter y espera respuesta.
+        Un equipo apagado no contesta: tras LATIDO_FALLOS intentos se declara caído."""
+        while self._activo:
+            time.sleep(1)
+            ahora = time.monotonic()
+            if (
+                not self._activo
+                or getattr(self, "incompatible", None)
+                or self.login_requerido  # en "Password:" un Enter sería un intento de login fallido
+                or ahora - self._ultimo_dato < LATIDO_SEG
+                or ahora - self._ultimo_latido < LATIDO_SEG
+            ):
+                continue
+            if not self._lock_cmd.acquire(blocking=False):
+                continue  # hay un comando en curso: no se interrumpe
+            try:
+                antes = self._ultimo_dato
+                self._ultimo_latido = time.monotonic()
+                self._en_latido = True
+                try:
+                    self._escribir("\r")
+                except RuntimeError:
+                    pass
+                limite = time.monotonic() + LATIDO_ESPERA
+                while self._activo and self._ultimo_dato == antes and time.monotonic() < limite:
+                    time.sleep(0.2)
+                respondio = self._ultimo_dato != antes
+                time.sleep(0.3)  # deja terminar de llegar el prompt
+                self._en_latido = False
+            finally:
+                self._lock_cmd.release()
+            if respondio:
+                self._fallos_latido = 0
+                continue
+            self._fallos_latido += 1
+            if self._fallos_latido >= LATIDO_FALLOS and not self.caido_desde and self._activo:
+                self._caido()
+
+    def _caido(self):
+        """El equipo no contesta por la consola: evento crítico, incidente y aviso (vigilancia.py)."""
+        # Desde cuándo: la última vez que el equipo envió algo
+        desde = _ahora() - timedelta(seconds=time.monotonic() - self._ultimo_dato)
+        self.caido_desde = desde.isoformat()
+        espera = LATIDO_SEG * LATIDO_FALLOS
+        self._agregar(
+            f"🔴 El equipo {self.equipo['name']} NO RESPONDE por la consola (sin respuesta en ~{espera} s). "
+            "¿Se apagó o se reinició? Se generó un evento crítico, un incidente y el aviso por Telegram.",
+            "error",
+        )
+        vigilancia.marcar_caido(
+            self.equipo["id"], "consola", "Revise la energía del equipo y el cable de consola.", desde
+        )
+
+    def _recuperado(self):
+        """Llegaron datos de un equipo que estaba caído: se registra la recuperación en otro hilo."""
+        self.caido_desde = None
+        self._fallos_latido = 0
+        self._agregar(f"🟢 El equipo {self.equipo['name']} volvió a responder.", "info")
+        threading.Thread(target=vigilancia.marcar_recuperado, args=(self.equipo["id"],), daemon=True).start()
+
+    def _cable_perdido(self):
+        """El puerto COM desapareció (adaptador USB desconectado): evento de severidad 2 (Crítico)."""
+        if not self.equipo:
+            return
+        db = SessionLocal()
+        try:
+            texto = (
+                f"Se perdió la conexión de consola ({self.puerto}) con {self.equipo['name']}: "
+                "se desconectó el cable USB de consola o el adaptador."
+            )
+            raw = f"<{FACILITY_CONSOLA * 8 + 2}>%NOC-2-CONSOLA_PERDIDA: {texto}"
+            ingerir(db, raw, self.equipo["ip_address"], "real", device_id=self.equipo["id"])
+        except Exception as exc:
+            self.ultimo_error = f"No se pudo registrar la pérdida de la consola: {exc}"
+        finally:
+            db.close()
 
     def _procesar(self, texto: str):
         """Limpia lo recibido (colores, retrocesos, --More--), lo corta en líneas y detecta el prompt o una
@@ -394,7 +500,26 @@ class ConsolaSerial:
             elif RE_PROMPT.search("\n" + resto):
                 self.prompt = RE_PROMPT.search("\n" + resto).group(1)
                 self.login_requerido = False
+                # v1.0.4: si al conectar el equipo no mostró el prompt, se revisa la marca ahora
+                if self.equipo and not getattr(self, "marca_detectada", None):
+                    self._verificar_marca()
                 self._listo.set()
+
+    def _revisar_marca_log(self, linea: str):
+        """v1.0.4: los logs también delatan la marca (Cisco: %LINK-3-UPDOWN; Huawei: IFNET/1/...).
+        Si no coincide con el equipo elegido, se bloquea igual que con el prompt."""
+        if getattr(self, "incompatible", None) or not self.equipo:
+            return
+        marca = "Cisco" if RE_LOG_CISCO.search(linea) else "Huawei"
+        elegida = self.equipo["vendor"]
+        if elegida in ("Cisco", "Huawei") and marca != elegida:
+            self.marca_detectada = marca
+            self.incompatible = (
+                f"Los logs que llegan son de un equipo {marca}, pero eligió {self.equipo['name']} "
+                f"({elegida}). Desconecte y elija el equipo correcto; si no aparece, regístrelo en "
+                "Inventario con Tipo: Real. Mientras tanto no se envían comandos ni se guardan logs."
+            )
+            self._agregar("⚠ " + self.incompatible, "error")
 
     def _linea(self, linea: str):
         """Procesa una línea completa: detecta logs (%FAC-SEV-MNEM), sesión cerrada por inactividad y el
@@ -404,10 +529,13 @@ class ConsolaSerial:
             if self._captura is not None:
                 self._captura.append("")
             return
+        if self._en_latido and self.prompt and linea.strip() == self.prompt.strip():
+            return  # v1.1.0: el prompt que devuelve el latido no se repite en pantalla
         if RE_SESION_CERRADA.search(linea):  # v1.0.0: el equipo cerró la sesión
             self.dormida = True
         sev = severidad_de_log(linea)
         if sev is not None:
+            self._revisar_marca_log(linea)  # v1.0.4
             self._ingerir_log(linea, sev)
         if self._captura is not None and sev is None:
             if len(self._captura) < 4000:
@@ -427,7 +555,7 @@ class ConsolaSerial:
         raw = f"<{FACILITY_CONSOLA * 8 + severidad}>{linea.lstrip()}"
         db = SessionLocal()
         try:
-            r = ingerir(db, raw, self.equipo["ip_address"], "real")
+            r = ingerir(db, raw, self.equipo["ip_address"], "real", device_id=self.equipo["id"])  # v1.0.3
             if r.get("resultado") == "nuevo":
                 self.eventos_capturados += 1
         except Exception as exc:

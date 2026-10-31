@@ -67,8 +67,10 @@ RE_CISCO = re.compile(
     re.S,
 )  # %FACILITY-SEV-MNEMONICO
 RE_HUAWEI = re.compile(
-    r"^([A-Z][a-z]{2} +\d{1,2} \d{4} \d{2}:\d{2}:\d{2})(?:[+-]\d{2}:\d{2})? (\S+) "
-    r"%%\d*([A-Z0-9_]+)/(\d)/([A-Z0-9_]+)(?:\([^)]*\))?(?:\[\d+\])?: ?(.*)$",
+    # v1.0.3: el nombre del equipo puede tener espacios ("HUAWEI _VRRP") y los traps
+    # llegan sin "%%" (ej. "IFNET/1/IF_LINKDOWN:OID ...").
+    r"^#?([A-Z][a-z]{2} +\d{1,2} \d{4} \d{2}:\d{2}:\d{2})(?:[+-]\d{2}:\d{2})? (.+?) "
+    r"(?:%%\d*)?([A-Z][A-Z0-9_]+)/(\d)/([A-Z0-9_]+)(?:\([^)]*\))?(?:\[\d+\])?: ?(.*)$",
     re.S,
 )
 RE_RFC3164 = re.compile(

@@ -98,12 +98,22 @@ def ver_equipo(device_id: int, db: Session = Depends(get_db)):
     return obtener_o_404(db, device_id)
 
 
+def ip_duplicada(db: Session, ip: str, excluir_id: int | None = None) -> bool:
+    """v1.0.3: True si otro equipo ya usa esa IP (los logs se asocian por IP)."""
+    consulta = db.query(Device).filter(Device.ip_address == ip)
+    if excluir_id is not None:
+        consulta = consulta.filter(Device.id != excluir_id)
+    return consulta.first() is not None
+
+
 @router.post("", response_model=DeviceOut, status_code=status.HTTP_201_CREATED, summary="Crear un equipo")
 def crear_equipo(datos: DeviceCreate, db: Session = Depends(get_db)):
     """Registra un equipo (solo administrador). Rechaza nombres e IP duplicados."""
     if nombre_duplicado(db, datos.name):
         raise HTTPException(status_code=409, detail=f"Ya existe un equipo llamado '{datos.name}'")
     validar_ip_simulada(datos.ip_address, datos.is_simulated)
+    if ip_duplicada(db, datos.ip_address):
+        raise HTTPException(status_code=409, detail=f"Ya existe un equipo con la IP {datos.ip_address}")
 
     equipo = Device(**datos.model_dump())
     db.add(equipo)
@@ -133,6 +143,9 @@ def editar_equipo(device_id: int, datos: DeviceUpdate, db: Session = Depends(get
     validar_ip_simulada(
         cambios.get("ip_address", equipo.ip_address), cambios.get("is_simulated", equipo.is_simulated)
     )
+
+    if "ip_address" in cambios and ip_duplicada(db, cambios["ip_address"], excluir_id=device_id):
+        raise HTTPException(status_code=409, detail=f"Ya existe un equipo con la IP {cambios['ip_address']}")
 
     detalle = []
     for campo, valor_nuevo in cambios.items():

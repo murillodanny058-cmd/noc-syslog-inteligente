@@ -855,6 +855,16 @@ details[open] summary {
   color: #4cff88;
   font-weight: 700;
 }
+/* v1.1.0: el equipo de la consola no responde */
+.estado-serial.conectado.caido {
+  color: #ff5c5c;
+  animation: parpadeo-caido 1.2s ease-in-out infinite;
+}
+@keyframes parpadeo-caido {
+  50% {
+    opacity: 0.45;
+  }
+}
 .nota-serial {
   flex-basis: 100%;
   margin: 0;
@@ -1091,3 +1101,170 @@ details[open] summary {
   margin: 0.8rem 0;
 }
 /* --- FIN BLOQUE FASE 12 --- */
+
+/* =====================================================================
+   v1.0.2: apariencia "sala de control"
+   - El fondo lleva una cuadrícula y brillos MUY suaves; los paneles con datos
+     siguen siendo sólidos para que todo se lea igual que antes.
+   - El login muestra una red de equipos animada (SVG propio, sin imágenes externas).
+   - Si el sistema pide menos movimiento, las animaciones se apagan.
+   ===================================================================== */
+body {
+  background-color: var(--fondo);
+  background-image: radial-gradient(
+      ellipse 60% 45% at 12% 0%,
+      rgba(47, 129, 247, 0.12),
+      transparent 70%
+    ),
+    radial-gradient(
+      ellipse 50% 40% at 95% 100%,
+      rgba(185, 129, 255, 0.08),
+      transparent 70%
+    ),
+    linear-gradient(rgba(139, 148, 158, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(139, 148, 158, 0.045) 1px, transparent 1px);
+  background-size:
+    100% 100%,
+    100% 100%,
+    40px 40px,
+    40px 40px;
+  background-attachment: fixed;
+}
+
+/* Encabezado y pestañas semitransparentes, con una línea de luz abajo */
+.barra-superior,
+.pestanas {
+  background: rgba(22, 27, 34, 0.82);
+  backdrop-filter: blur(8px);
+}
+.barra-superior {
+  position: relative;
+}
+.barra-superior::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--acento) 30%,
+    var(--morado) 70%,
+    transparent
+  );
+  opacity: 0.8;
+}
+.barra-superior h1 {
+  letter-spacing: 0.02em;
+  text-shadow: 0 0 18px rgba(47, 129, 247, 0.45);
+}
+.pestana.activa {
+  text-shadow: 0 0 12px rgba(47, 129, 247, 0.6);
+}
+
+/* Los paneles con datos: sólidos, con un brillo suave en el borde */
+.panel {
+  box-shadow:
+    0 0 0 1px rgba(47, 129, 247, 0.04),
+    0 8px 24px rgba(0, 0, 0, 0.25);
+}
+
+/* ---------- Login: red de equipos de fondo ---------- */
+.pagina-login {
+  position: relative;
+  overflow: hidden;
+}
+.fondo-red {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  pointer-events: none;
+}
+.red-enlaces line {
+  stroke: rgba(76, 194, 255, 0.24);
+  stroke-width: 1.2;
+}
+.red-paquetes line {
+  stroke: rgba(76, 194, 255, 0.9);
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-dasharray: 6 600;
+  animation: viajar-paquete 6s linear infinite;
+  filter: drop-shadow(0 0 4px rgba(76, 194, 255, 0.9));
+}
+.red-nodos circle {
+  fill: #0d1117;
+  stroke: rgba(76, 194, 255, 0.75);
+  stroke-width: 1.5;
+}
+.red-nodos .nodo-nucleo {
+  stroke: var(--acento);
+  stroke-width: 2.5;
+  fill: rgba(47, 129, 247, 0.25);
+}
+.red-nodos .nodo-dist {
+  stroke: var(--morado);
+  stroke-width: 2;
+}
+.red-pulso {
+  animation: pulso-nodo 3s ease-in-out infinite;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+@keyframes viajar-paquete {
+  from {
+    stroke-dashoffset: 606;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes pulso-nodo {
+  0%,
+  100% {
+    filter: drop-shadow(0 0 2px rgba(76, 194, 255, 0.4));
+    opacity: 0.75;
+  }
+  50% {
+    filter: drop-shadow(0 0 10px rgba(76, 194, 255, 0.95));
+    opacity: 1;
+  }
+}
+.pagina-login::before {
+  /* oscurece el centro para que la tarjeta resalte */
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background: radial-gradient(
+    circle at 50% 50%,
+    rgba(13, 17, 23, 0.55),
+    rgba(13, 17, 23, 0.1) 60%
+  );
+  pointer-events: none;
+}
+.caja-login {
+  position: relative;
+  z-index: 1;
+  background: rgba(22, 27, 34, 0.78);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(76, 194, 255, 0.25);
+  box-shadow:
+    0 0 40px rgba(47, 129, 247, 0.18),
+    0 20px 50px rgba(0, 0, 0, 0.5);
+}
+.caja-login h1 {
+  text-shadow: 0 0 18px rgba(47, 129, 247, 0.5);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .red-paquetes line,
+  .red-pulso {
+    animation: none;
+  }
+}
+/* --- FIN BLOQUE v1.0.2 --- */

@@ -1,0 +1,1260 @@
+/* =====================================================================
+   NOC Syslog Inteligente — estilos
+   Tema oscuro (como las pantallas de un NOC real) y diseño responsivo.
+   ===================================================================== */
+
+/* ---------- Variables de color ---------- */
+:root {
+  --fondo: #0d1117;
+  --panel: #161b22;
+  --panel-2: #1f2630;
+  --borde: #30363d;
+  --texto: #e6edf3;
+  --tenue: #8b949e;
+  --acento: #2f81f7;
+  --morado: #b981ff;
+  --radio: 10px;
+  /* Un color por nivel de severidad (0 = más grave) */
+  --s0: #ff2d6f;
+  --s1: #ff453a;
+  --s2: #ff7a1a;
+  --s3: #ffb020;
+  --s4: #e3d000;
+  --s5: #4cc2ff;
+  --s6: #3ecf6e;
+  --s7: #8b949e;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family:
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    Roboto,
+    sans-serif;
+  background: var(--fondo);
+  color: var(--texto);
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+h1 {
+  font-size: 1.15rem;
+  margin: 0;
+}
+h2 {
+  font-size: 1rem;
+  margin: 0 0 0.75rem;
+}
+
+/* ---------- Encabezado ---------- */
+.barra-superior {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding: 0.8rem 1.25rem;
+  background: var(--panel);
+  border-bottom: 1px solid var(--borde);
+}
+.marca {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+}
+.logo {
+  font-size: 1.7rem;
+}
+.subtitulo {
+  margin: 0;
+  color: var(--tenue);
+  font-size: 0.8rem;
+}
+.conexion {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  color: var(--tenue);
+}
+.punto {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--tenue);
+}
+.punto.ok {
+  background: var(--s6);
+  box-shadow: 0 0 8px var(--s6);
+}
+.punto.error {
+  background: var(--s1);
+}
+
+/* ---------- Pestañas ---------- */
+.pestanas {
+  display: flex;
+  gap: 0.25rem;
+  padding: 0 1.25rem;
+  background: var(--panel);
+  border-bottom: 1px solid var(--borde);
+  overflow-x: auto; /* en el celular se deslizan de lado */
+}
+.pestana {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--tenue);
+  padding: 0.75rem 1rem;
+  font-size: 0.95rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.pestana:hover {
+  color: var(--texto);
+}
+.pestana.activa {
+  color: var(--texto);
+  border-bottom-color: var(--acento);
+}
+
+/* ---------- Estructura general ---------- */
+main {
+  padding: 1.25rem;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+.vista {
+  display: none;
+}
+.vista.activa {
+  display: block;
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  padding: 1rem;
+  min-width: 0;
+}
+.panel-alerta {
+  border-color: var(--morado);
+}
+.nota {
+  color: var(--tenue);
+  font-size: 0.8rem;
+  margin: 0 0 0.6rem;
+}
+.tenue {
+  color: var(--tenue);
+  font-size: 0.78rem;
+}
+.vacio {
+  color: var(--tenue);
+  text-align: center;
+  padding: 1rem;
+}
+.acciones {
+  margin-top: 1rem;
+}
+
+/* ---------- Tarjetas del resumen ---------- */
+.tarjetas {
+  display: grid;
+  grid-template-columns: repeat(
+    auto-fit,
+    minmax(170px, 1fr)
+  ); /* se acomodan solas */
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+.tarjeta {
+  background: var(--panel);
+  border: 1px solid var(--borde);
+  border-left: 4px solid var(--acento);
+  border-radius: var(--radio);
+  padding: 0.9rem 1rem;
+}
+.tarjeta .titulo {
+  color: var(--tenue);
+  font-size: 0.85rem;
+}
+.tarjeta .numero {
+  font-size: 2rem;
+  font-weight: 700;
+}
+.tarjeta .detalle {
+  color: var(--tenue);
+  font-size: 0.78rem;
+}
+.tarjeta.rojo {
+  border-left-color: var(--s1);
+}
+.tarjeta.rojo .numero {
+  color: var(--s1);
+}
+.tarjeta.naranja {
+  border-left-color: var(--s3);
+}
+.tarjeta.naranja .numero {
+  color: var(--s3);
+}
+.tarjeta.morado {
+  border-left-color: var(--morado);
+}
+.tarjeta.morado .numero {
+  color: var(--morado);
+}
+
+.rejilla {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+}
+
+/* ---------- Colores de severidad ---------- */
+.s0 {
+  background: var(--s0);
+}
+.s1 {
+  background: var(--s1);
+}
+.s2 {
+  background: var(--s2);
+}
+.s3 {
+  background: var(--s3);
+}
+.s4 {
+  background: var(--s4);
+}
+.s5 {
+  background: var(--s5);
+}
+.s6 {
+  background: var(--s6);
+}
+.s7 {
+  background: var(--s7);
+}
+
+.sev {
+  display: inline-block;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #0d1117;
+  white-space: nowrap;
+}
+
+/* ---------- Gráfico de barras ---------- */
+.barra-fila {
+  display: grid;
+  grid-template-columns: 140px 1fr 36px;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.45rem;
+}
+.barra-pista {
+  background: var(--panel-2);
+  border-radius: 4px;
+  height: 14px;
+  overflow: hidden;
+}
+.barra {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.4s;
+}
+.barra-valor {
+  text-align: right;
+  color: var(--tenue);
+  font-size: 0.85rem;
+}
+
+/* ---------- Semáforo de equipos ---------- */
+.equipo {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.55rem 0;
+  border-bottom: 1px solid var(--borde);
+}
+.equipo:last-child {
+  border-bottom: none;
+}
+.semaforo {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.semaforo.verde {
+  background: var(--s6);
+}
+.semaforo.rojo {
+  background: var(--s1);
+  box-shadow: 0 0 8px var(--s1);
+}
+.semaforo.gris {
+  background: var(--tenue);
+}
+.equipo-info {
+  flex: 1;
+  min-width: 0;
+}
+.equipo-info small {
+  display: block;
+  color: var(--tenue);
+}
+.equipo-cifras {
+  text-align: right;
+  font-size: 0.78rem;
+  color: var(--tenue);
+}
+
+/* ---------- Listas de eventos ---------- */
+.lista {
+  max-height: 340px;
+  overflow-y: auto;
+}
+.item {
+  padding: 0.55rem 0;
+  border-bottom: 1px solid var(--borde);
+}
+.item-cab {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+}
+.item-msg {
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 0.8rem;
+  color: var(--tenue);
+  margin-top: 0.25rem;
+  word-break: break-word;
+}
+.rep {
+  background: var(--panel-2);
+  border-radius: 4px;
+  padding: 0 0.35rem;
+  font-size: 0.75rem;
+}
+
+/* ---------- Botones ---------- */
+.btn {
+  background: var(--acento);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 0.55rem 1rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+  min-height: 40px; /* fácil de tocar con el dedo */
+}
+.btn:hover {
+  filter: brightness(1.15);
+}
+.btn:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+.btn.secundario {
+  background: var(--panel-2);
+  color: var(--texto);
+  border: 1px solid var(--borde);
+}
+.btn.peligro {
+  background: transparent;
+  color: var(--s1);
+  border: 1px solid var(--s1);
+}
+.btn.mini {
+  padding: 0.3rem 0.6rem;
+  font-size: 0.78rem;
+  min-height: 32px;
+}
+.botones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+/* ---------- Formularios ---------- */
+.formulario {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.75rem;
+  align-items: end;
+  margin-bottom: 1rem;
+}
+.formulario label,
+.barra-filtro label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.8rem;
+  color: var(--tenue);
+}
+.formulario .ancho {
+  grid-column: 1 / -1;
+}
+.formulario input:not([type="checkbox"]),
+.formulario select,
+.formulario textarea {
+  width: 100%;
+}
+.formulario .casilla {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--texto);
+  font-size: 0.9rem;
+}
+input,
+select,
+textarea {
+  background: var(--fondo);
+  color: var(--texto);
+  border: 1px solid var(--borde);
+  border-radius: 6px;
+  padding: 0.5rem 0.6rem;
+  font: inherit;
+  min-height: 40px;
+}
+input[type="checkbox"] {
+  min-height: auto;
+  width: 18px;
+  height: 18px;
+}
+input:focus,
+select:focus,
+textarea:focus {
+  outline: 2px solid var(--acento);
+  border-color: transparent;
+}
+input[type="datetime-local"] {
+  color-scheme: dark;
+}
+details.panel {
+  margin-bottom: 1rem;
+}
+details.panel summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+details[open] summary {
+  margin-bottom: 1rem;
+}
+.barra-filtro {
+  margin-bottom: 1rem;
+  max-width: 240px;
+}
+
+/* ---------- Tablas ---------- */
+.tabla-contenedor {
+  overflow-x: auto;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+}
+.tabla {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+  min-width: 760px;
+}
+.tabla th {
+  text-align: left;
+  background: var(--panel-2);
+  color: var(--tenue);
+  font-weight: 600;
+  padding: 0.6rem;
+  white-space: nowrap;
+}
+.tabla td {
+  padding: 0.55rem 0.6rem;
+  border-top: 1px solid var(--borde);
+  vertical-align: top;
+}
+.tabla tr:hover td {
+  background: var(--panel);
+}
+.tabla .msg {
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 0.78rem;
+  max-width: 420px;
+  word-break: break-word;
+}
+.tabla tr.sospechoso td {
+  background: rgba(185, 129, 255, 0.08);
+}
+.etiqueta-ia {
+  color: var(--morado);
+  font-weight: 700;
+  font-size: 0.72rem;
+}
+.estado-equipo {
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+.estado-equipo.activo {
+  color: var(--s6);
+}
+.estado-equipo.mantenimiento {
+  color: var(--s3);
+}
+.estado-equipo.inactivo,
+.estado-equipo.desconocido {
+  color: var(--tenue);
+}
+/* --- FIN DEL BLOQUE A --- */
+/* ---------- Incidentes ---------- */
+.incidentes {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr));
+  gap: 1rem;
+}
+.incidente {
+  background: var(--panel);
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.incidente h3 {
+  margin: 0;
+  font-size: 0.95rem;
+  word-break: break-word;
+}
+.incidente .meta {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--tenue);
+}
+.incidente .resolucion {
+  font-size: 0.82rem;
+  background: var(--panel-2);
+  padding: 0.5rem;
+  border-radius: 6px;
+}
+.estado {
+  display: inline-block;
+  padding: 0.1rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.estado.abierto {
+  background: rgba(255, 69, 58, 0.18);
+  color: var(--s1);
+}
+.estado.asignado {
+  background: rgba(255, 176, 32, 0.18);
+  color: var(--s3);
+}
+.estado.en_progreso {
+  background: rgba(47, 129, 247, 0.2);
+  color: var(--acento);
+}
+.estado.cerrado {
+  background: rgba(62, 207, 110, 0.15);
+  color: var(--s6);
+}
+
+/* ---------- Mensajes emergentes ---------- */
+.avisos {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  left: 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.5rem;
+  z-index: 50;
+  pointer-events: none;
+}
+.aviso {
+  background: var(--panel-2);
+  border-left: 4px solid var(--s6);
+  padding: 0.7rem 1rem;
+  border-radius: 8px;
+  max-width: 420px;
+  font-size: 0.88rem;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+  pointer-events: auto;
+}
+.aviso.error {
+  border-left-color: var(--s1);
+}
+
+.pie {
+  text-align: center;
+  color: var(--tenue);
+  font-size: 0.75rem;
+  padding: 2rem 1rem;
+}
+
+/* ---------- Responsivo: tablets y celulares ---------- */
+@media (max-width: 800px) {
+  main {
+    padding: 0.75rem;
+  }
+  .rejilla {
+    grid-template-columns: 1fr;
+  }
+  .barra-fila {
+    grid-template-columns: 115px 1fr 30px;
+  }
+  .tarjeta .numero {
+    font-size: 1.6rem;
+  }
+  .barra-superior {
+    padding: 0.7rem 0.9rem;
+  }
+  .pestanas {
+    padding: 0 0.5rem;
+  }
+}
+/* --- FIN DEL ARCHIVO --- */
+
+/* =====================================================================
+   FASE 5: Configuraciones y consola tipo PuTTY
+   ===================================================================== */
+[hidden] {
+  display: none !important;
+}
+
+/* ---------- Generador de configuraciones ---------- */
+.rejilla-config {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 1rem;
+}
+.columna {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.cabecera-panel {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+.cabecera-panel h2 {
+  margin: 0;
+}
+.codigo {
+  background: var(--fondo);
+  border: 1px solid var(--borde);
+  border-radius: 8px;
+  padding: 1rem;
+  margin: 0;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  white-space: pre;
+  overflow: auto;
+  max-height: 560px;
+}
+.panel-aviso {
+  border-color: var(--s3);
+}
+.lista-simple {
+  margin: 0;
+  padding-left: 1.1rem;
+  font-size: 0.82rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+.lista-simple.mono {
+  font-family: ui-monospace, Consolas, monospace;
+}
+.subtitulo-panel {
+  font-size: 0.85rem;
+  margin: 1rem 0 0.4rem;
+}
+
+/* ---------- Consola tipo PuTTY ---------- */
+.barra-consola {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: end;
+  margin-bottom: 1rem;
+}
+.barra-consola label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.8rem;
+  color: var(--tenue);
+  min-width: 220px;
+}
+.aviso-ia {
+  color: var(--morado);
+}
+.rejilla-consola {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 1rem;
+  align-items: start;
+}
+.terminal {
+  background: #000;
+  border: 1px solid #333;
+  border-radius: 8px;
+  font-family: ui-monospace, Consolas, "Courier New", monospace;
+  font-size: 0.85rem;
+  color: #d0d0d0;
+}
+.terminal.modo-ia {
+  border-color: var(--morado);
+  box-shadow: 0 0 12px rgba(185, 129, 255, 0.35);
+}
+.terminal-salida {
+  height: 460px;
+  overflow-y: auto;
+  padding: 0.8rem 1rem 0;
+}
+.t-linea {
+  white-space: pre-wrap;
+  word-break: break-word;
+  min-height: 1.2em;
+}
+.t-comando {
+  color: #4cff88;
+}
+.t-info {
+  color: #6cb6ff;
+}
+.t-bloqueado {
+  color: #ff5f56;
+  font-weight: 700;
+}
+.t-invalido {
+  color: #ffb020;
+  font-weight: 700;
+}
+.t-no_permitido {
+  color: #e3d000;
+  font-weight: 700;
+}
+.terminal-entrada {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1rem 0.8rem;
+  border-top: 1px solid #1c1c1c;
+}
+.t-prompt {
+  color: #4cff88;
+  white-space: nowrap;
+}
+.terminal-entrada input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: #4cff88;
+  font: inherit;
+  min-height: auto;
+  padding: 0.2rem 0;
+}
+.terminal-entrada input:focus {
+  outline: none;
+}
+
+@media (max-width: 800px) {
+  .rejilla-config,
+  .rejilla-consola {
+    grid-template-columns: 1fr;
+  }
+  .terminal-salida {
+    height: 340px;
+  }
+  .terminal {
+    font-size: 0.78rem;
+  }
+}
+/* =====================================================================
+   FASE 7: inicio de sesión y usuario conectado
+   ===================================================================== */
+.usuario {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.8rem;
+  color: var(--tenue);
+}
+.pagina-login {
+  display: flex;
+  min-height: 100vh;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+.caja-login {
+  width: 100%;
+  max-width: 380px;
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+}
+.formulario-login {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+.formulario-login label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.8rem;
+  color: var(--tenue);
+}
+.error-login {
+  color: var(--s1);
+  font-size: 0.85rem;
+  margin: 0;
+}
+/* --- FIN BLOQUE FASE 7 --- */
+/* --- FIN BLOQUE FASE 5 --- */
+
+/* =====================================================================
+   FASE 9: consola REAL por cable de consola (puerto COM)
+   ===================================================================== */
+.panel-serial {
+  border-color: var(--s3);
+}
+.barra-consola label.corto {
+  min-width: 120px;
+}
+.estado-serial {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--tenue);
+}
+.estado-serial.conectado {
+  color: #4cff88;
+  font-weight: 700;
+}
+.nota-serial {
+  flex-basis: 100%;
+  margin: 0;
+}
+.t-log {
+  color: #ffd84d;
+}
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.etiqueta-real {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #000;
+  background: var(--s3);
+  border-radius: 4px;
+  padding: 0.05rem 0.35rem;
+  vertical-align: middle;
+}
+/* --- FIN BLOQUE FASE 9 --- */
+
+/* =====================================================================
+   FASE 10: puertos e interfaces
+   ===================================================================== */
+.btn.mini.puerto {
+  white-space: nowrap;
+  font-family: ui-monospace, Consolas, monospace;
+}
+.dialogo {
+  padding: 0;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  background: var(--panel);
+  color: var(--texto);
+  width: min(760px, calc(100vw - 32px));
+  max-height: calc(100vh - 48px);
+}
+.dialogo::backdrop {
+  background: rgba(0, 0, 0, 0.6);
+}
+.dialogo-contenido {
+  padding: 1rem 1.2rem 1.2rem;
+}
+.dialogo-cabecera {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.6rem;
+}
+.dialogo-cabecera h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+.ficha-puerto {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0.6rem 0 1rem;
+}
+.ficha-fila {
+  display: grid;
+  grid-template-columns: 190px 1fr;
+  gap: 0.6rem;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid var(--borde);
+  font-size: 0.88rem;
+}
+.ficha-fila span {
+  color: var(--tenue);
+}
+.ficha-fila strong {
+  font-weight: 600;
+  word-break: break-word;
+}
+.estado-puerto {
+  display: inline-block;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #000;
+  background: var(--s7);
+}
+.estado-puerto.up {
+  background: var(--s6);
+}
+.estado-puerto.down {
+  background: var(--s1);
+  color: #fff;
+}
+.estado-puerto.err-disabled {
+  background: var(--s2);
+}
+.lista-eventos-puerto {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+}
+.lista-eventos-puerto li {
+  padding: 0.5rem;
+  background: var(--panel-2);
+  border-radius: 6px;
+  word-break: break-word;
+}
+.tabla-puertos td,
+.tabla-puertos th {
+  font-size: 0.82rem;
+}
+.mono {
+  font-family: ui-monospace, Consolas, monospace;
+}
+@media (max-width: 600px) {
+  .ficha-fila {
+    grid-template-columns: 1fr;
+    gap: 0.1rem;
+  }
+}
+/* --- FIN BLOQUE FASE 10 --- */
+
+/* =====================================================================
+   FASE 11: cambios con aprobación humana
+   ===================================================================== */
+.cambio pre,
+.previa-cambio pre {
+  margin: 0.3rem 0 0;
+  padding: 0.5rem;
+  background: var(--fondo);
+  border: 1px solid var(--borde);
+  border-radius: 6px;
+  font-size: 0.78rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 260px;
+  overflow: auto;
+}
+.detalle-cambio summary {
+  cursor: pointer;
+  font-size: 0.8rem;
+  color: var(--acento);
+}
+.previa-cambio {
+  background: var(--panel-2);
+  border-radius: 8px;
+  padding: 0.75rem;
+}
+.estado.cambio-propuesta {
+  background: rgba(255, 176, 32, 0.18);
+  color: var(--s3);
+}
+.estado.cambio-aprobada,
+.estado.cambio-ejecutada {
+  background: rgba(47, 129, 247, 0.2);
+  color: var(--acento);
+}
+.estado.cambio-verificada {
+  background: rgba(62, 207, 110, 0.15);
+  color: var(--s6);
+}
+.estado.cambio-rechazada,
+.estado.cambio-revertida {
+  background: rgba(139, 148, 158, 0.2);
+  color: var(--tenue);
+}
+.estado.cambio-fallida,
+.estado.cambio-verificacion_fallida {
+  background: rgba(255, 69, 58, 0.18);
+  color: var(--s1);
+}
+.formulario label[hidden] {
+  display: none;
+}
+/* --- FIN BLOQUE FASE 11 --- */
+
+/* ===== FASE 12: agente auditor ===== */
+.riesgo {
+  display: inline-block;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.riesgo-info {
+  background: rgba(76, 194, 255, 0.15);
+  color: var(--s5);
+}
+.riesgo-bajo {
+  background: rgba(62, 207, 110, 0.15);
+  color: var(--s6);
+}
+.riesgo-medio {
+  background: rgba(255, 176, 32, 0.18);
+  color: var(--s3);
+}
+.riesgo-alto {
+  background: rgba(255, 69, 58, 0.18);
+  color: var(--s1);
+}
+.linea-tiempo {
+  list-style: none;
+  padding: 0;
+  margin: 0.5rem 0 0;
+  font-size: 0.85rem;
+  display: grid;
+  gap: 0.25rem;
+}
+.informe-ia h3 {
+  margin: 1rem 0 0.4rem;
+  font-size: 1.05rem;
+}
+.informe-ia h4 {
+  margin: 0.8rem 0 0.3rem;
+  font-size: 0.95rem;
+}
+.informe-ia p {
+  margin: 0.3rem 0;
+  line-height: 1.5;
+}
+.informe-ia .md-item {
+  margin: 0.2rem 0 0.2rem 0.5rem;
+  line-height: 1.45;
+}
+.informe-ia .md-item.sub {
+  margin-left: 1.6rem;
+  color: var(--tenue);
+  font-size: 0.9rem;
+}
+#aud-resumen {
+  margin: 0.8rem 0;
+}
+/* --- FIN BLOQUE FASE 12 --- */
+
+/* =====================================================================
+   v1.0.2: apariencia "sala de control"
+   - El fondo lleva una cuadrícula y brillos MUY suaves; los paneles con datos
+     siguen siendo sólidos para que todo se lea igual que antes.
+   - El login muestra una red de equipos animada (SVG propio, sin imágenes externas).
+   - Si el sistema pide menos movimiento, las animaciones se apagan.
+   ===================================================================== */
+body {
+  background-color: var(--fondo);
+  background-image: radial-gradient(
+      ellipse 60% 45% at 12% 0%,
+      rgba(47, 129, 247, 0.12),
+      transparent 70%
+    ),
+    radial-gradient(
+      ellipse 50% 40% at 95% 100%,
+      rgba(185, 129, 255, 0.08),
+      transparent 70%
+    ),
+    linear-gradient(rgba(139, 148, 158, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(139, 148, 158, 0.045) 1px, transparent 1px);
+  background-size:
+    100% 100%,
+    100% 100%,
+    40px 40px,
+    40px 40px;
+  background-attachment: fixed;
+}
+
+/* Encabezado y pestañas semitransparentes, con una línea de luz abajo */
+.barra-superior,
+.pestanas {
+  background: rgba(22, 27, 34, 0.82);
+  backdrop-filter: blur(8px);
+}
+.barra-superior {
+  position: relative;
+}
+.barra-superior::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--acento) 30%,
+    var(--morado) 70%,
+    transparent
+  );
+  opacity: 0.8;
+}
+.barra-superior h1 {
+  letter-spacing: 0.02em;
+  text-shadow: 0 0 18px rgba(47, 129, 247, 0.45);
+}
+.pestana.activa {
+  text-shadow: 0 0 12px rgba(47, 129, 247, 0.6);
+}
+
+/* Los paneles con datos: sólidos, con un brillo suave en el borde */
+.panel {
+  box-shadow:
+    0 0 0 1px rgba(47, 129, 247, 0.04),
+    0 8px 24px rgba(0, 0, 0, 0.25);
+}
+
+/* ---------- Login: red de equipos de fondo ---------- */
+.pagina-login {
+  position: relative;
+  overflow: hidden;
+}
+.fondo-red {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  pointer-events: none;
+}
+.red-enlaces line {
+  stroke: rgba(76, 194, 255, 0.24);
+  stroke-width: 1.2;
+}
+.red-paquetes line {
+  stroke: rgba(76, 194, 255, 0.9);
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-dasharray: 6 600;
+  animation: viajar-paquete 6s linear infinite;
+  filter: drop-shadow(0 0 4px rgba(76, 194, 255, 0.9));
+}
+.red-nodos circle {
+  fill: #0d1117;
+  stroke: rgba(76, 194, 255, 0.75);
+  stroke-width: 1.5;
+}
+.red-nodos .nodo-nucleo {
+  stroke: var(--acento);
+  stroke-width: 2.5;
+  fill: rgba(47, 129, 247, 0.25);
+}
+.red-nodos .nodo-dist {
+  stroke: var(--morado);
+  stroke-width: 2;
+}
+.red-pulso {
+  animation: pulso-nodo 3s ease-in-out infinite;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+@keyframes viajar-paquete {
+  from {
+    stroke-dashoffset: 606;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes pulso-nodo {
+  0%,
+  100% {
+    filter: drop-shadow(0 0 2px rgba(76, 194, 255, 0.4));
+    opacity: 0.75;
+  }
+  50% {
+    filter: drop-shadow(0 0 10px rgba(76, 194, 255, 0.95));
+    opacity: 1;
+  }
+}
+.pagina-login::before {
+  /* oscurece el centro para que la tarjeta resalte */
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background: radial-gradient(
+    circle at 50% 50%,
+    rgba(13, 17, 23, 0.55),
+    rgba(13, 17, 23, 0.1) 60%
+  );
+  pointer-events: none;
+}
+.caja-login {
+  position: relative;
+  z-index: 1;
+  background: rgba(22, 27, 34, 0.78);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(76, 194, 255, 0.25);
+  box-shadow:
+    0 0 40px rgba(47, 129, 247, 0.18),
+    0 20px 50px rgba(0, 0, 0, 0.5);
+}
+.caja-login h1 {
+  text-shadow: 0 0 18px rgba(47, 129, 247, 0.5);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .red-paquetes line,
+  .red-pulso {
+    animation: none;
+  }
+}
+/* --- FIN BLOQUE v1.0.2 --- */

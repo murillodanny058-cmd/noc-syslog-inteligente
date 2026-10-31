@@ -172,7 +172,10 @@ async function cargarResumen() {
       tarjeta(
         "Equipos",
         eq.total,
-        `${eq.por_estado.activo || 0} activos · ${eq.por_estado.mantenimiento || 0} en mantenimiento`,
+        eq.caidos
+          ? `🔴 ${eq.caidos} sin respuesta · ${eq.por_estado.activo || 0} activos`
+          : `${eq.por_estado.activo || 0} activos · ${eq.por_estado.mantenimiento || 0} en mantenimiento`,
+        eq.caidos ? "rojo" : "",
       ),
       tarjeta(
         "Eventos",
@@ -220,7 +223,11 @@ async function cargarResumen() {
         .map((d) => {
           let color = "verde";
           let texto = "Sin eventos críticos";
-          if (d.status !== "activo") {
+          if (d.caido) {
+            // v1.1.0: el equipo no responde (apagado, reiniciando o sin cable)
+            color = "rojo";
+            texto = `SIN RESPUESTA hace ${d.caido.duracion} (${d.caido.via})`;
+          } else if (d.status !== "activo") {
             color = "gris";
             texto =
               `En ${d.status}` +

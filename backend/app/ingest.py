@@ -98,8 +98,17 @@ def _avisar(evento: SyslogEvent):
         )
 
 
-def ingerir(db: Session, raw: str, source_ip: str, source_type: str = "simulado") -> dict:
-    """Procesa UN mensaje Syslog y devuelve qué pasó con él."""
+def ingerir(
+    db: Session,
+    raw: str,
+    source_ip: str,
+    source_type: str = "simulado",
+    device_id: int | None = None,
+    avisar: bool = True,
+) -> dict:
+    """Procesa UN mensaje Syslog y devuelve qué pasó con él.
+
+    v1.0.3: si se conoce el equipo (consola por cable), se usa ese equipo en vez de buscarlo por IP."""
     ahora = datetime.now(UTC)
 
     # 1. Parsear
@@ -108,7 +117,9 @@ def ingerir(db: Session, raw: str, source_ip: str, source_type: str = "simulado"
         return {"resultado": "rechazado", "motivo": "El mensaje está vacío"}
 
     # 2. Asociar con el inventario
-    equipo = db.query(Device).filter(Device.ip_address == source_ip).first()
+    equipo = db.get(Device, device_id) if device_id else None
+    if equipo is None:
+        equipo = db.query(Device).filter(Device.ip_address == source_ip).first()
 
     # 3. Inspeccionar (se revisa TODO el texto, no solo el mensaje)
     sospechoso = es_sospechoso(limpiar(raw))
@@ -192,8 +203,9 @@ def ingerir(db: Session, raw: str, source_ip: str, source_type: str = "simulado"
     db.commit()
     db.refresh(evento)
 
-    # 7. Avisar (en segundo plano)
-    _avisar(evento)
+    # 7. Avisar (en segundo plano). v1.1.0: la vigilancia de caídas envía su propio aviso.
+    if avisar:
+        _avisar(evento)
     return _resumen("nuevo", evento)
 
 

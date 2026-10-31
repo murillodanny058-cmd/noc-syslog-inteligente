@@ -356,7 +356,11 @@ function pintarEstadoSerial(e) {
     if (e.login_requerido)
       texto +=
         " · ⚠️ El equipo pide usuario/contraseña (inicie sesión una vez en PuTTY)";
+    if (e.caido_desde)
+      // v1.1.0: el latido no obtuvo respuesta
+      texto = `🔴 ${e.equipo.name} NO RESPONDE desde las ${new Date(e.caido_desde).toLocaleTimeString()} · ¿apagado o reiniciando? · ${e.puerto}`;
     caja.textContent = texto;
+    caja.classList.toggle("caido", Boolean(e.caido_desde));
     // Mostrar el puerto y el equipo que realmente están en uso
     const sel = $("#ser-puerto");
     if (![...sel.options].some((o) => o.value === e.puerto))

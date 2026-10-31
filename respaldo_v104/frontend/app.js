@@ -1,0 +1,686 @@
+"use strict";
+/*
+ * NOC Syslog Inteligente — lógica del dashboard.
+ * JavaScript puro (sin frameworks). Se comunica con la API en /api.
+ *
+ * REGLA DE SEGURIDAD: todo texto que viene de la API (sobre todo los mensajes
+ * de los logs) se ESCAPA con la función esc() antes de mostrarlo. Así, si un
+ * atacante mete código HTML o JavaScript dentro de un log, se muestra como
+ * texto y nunca se ejecuta en el navegador (protección contra XSS).
+ */
+
+const SEVERIDADES = [
+  "Emergency",
+  "Alert",
+  "Critical",
+  "Error",
+  "Warning",
+  "Notice",
+  "Informational",
+  "Debug",
+];
+const NOMBRE_ESTADO = {
+  abierto: "Abierto",
+  asignado: "Asignado",
+  en_progreso: "En progreso",
+  cerrado: "Cerrado",
+};
+const ACTUALIZAR_CADA_MS = 15000; // el resumen se refresca solo cada 15 segundos
+
+let equipos = []; // copia local del inventario
+let vistaActual = "resumen";
+
+// ===========================================================================
+// Utilidades
+// ===========================================================================
+const $ = (selector) => document.querySelector(selector);
+
+/** Convierte < > & " ' en texto seguro. NUNCA mostrar datos sin pasar por aquí. */
+function esc(valor) {
+  return String(valor ?? "").replace(
+    /[&<>"']/g,
+    (c) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[
+        c
+      ],
+  );
+}
+
+/** La API guarda las fechas en UTC; aquí se muestran en la hora local (Colombia). */
+function fecha(iso) {
+  if (!iso) return "—";
+  let texto = String(iso).replace(/(\.\d{3})\d+/, "$1"); // máximo 3 decimales
+  if (!/([zZ]|[+-]\d\d:\d\d)$/.test(texto)) texto += "Z"; // marcar como UTC
+  return new Date(texto).toLocaleString("es-CO", {
+    dateStyle: "short",
+    timeStyle: "medium",
+  });
+}
+
+/** Llama a la API y devuelve el JSON. Si hay error, lanza el mensaje del servidor. */
+async function api(ruta, opciones = {}) {
+  let respuesta;
+  try {
+    respuesta = await fetch("/api" + ruta, {
+      ...opciones,
+      headers: {
+        "Content-Type": "application/json",
+        ...(opciones.headers || {}),
+      },
+    });
+  } catch (error) {
+    marcarConexion(false); // el servidor no respondió
+    throw new Error("No hay conexión con el servidor");
+  }
+  marcarConexion(true);
+  if (respuesta.status === 401) {
+    // sin sesión: ir al login
+    location.href = "/login.html";
+    throw new Error("Debe iniciar sesión");
+  }
+  if (respuesta.status === 204) return null;
+  const datos = await respuesta.json().catch(() => ({}));
+  if (!respuesta.ok) {
+    let mensaje = datos.detail;
+    if (Array.isArray(mensaje)) mensaje = mensaje.map((e) => e.msg).join(" · ");
+    throw new Error(mensaje || `Error ${respuesta.status}`);
+  }
+  return datos;
+}
+
+/** Muestra un mensaje emergente abajo a la derecha. */
+function aviso(texto, tipo = "ok") {
+  const div = document.createElement("div");
+  div.className = `aviso ${tipo}`;
+  div.textContent = texto; // textContent nunca interpreta HTML
+  $("#avisos").appendChild(div);
+  setTimeout(() => div.remove(), 5000);
+}
+
+/** Etiqueta de color con el número y el nombre de la severidad (0 Emergency ... 7 Debug). */
+function insigniaSeveridad(n) {
+  const s = Number(n);
+  return `<span class="sev s${s}">${s} ${SEVERIDADES[s] ?? "?"}</span>`;
+}
+
+/** Nombre del equipo del inventario con ese id, o null si no existe. */
+function nombreEquipo(id) {
+  const equipo = equipos.find((e) => e.id === id);
+  return equipo ? equipo.name : null;
+}
+
+/** Punto verde/rojo y hora de la última respuesta del servidor en el encabezado. */
+function marcarConexion(ok) {
+  $("#indicador").className = "punto " + (ok ? "ok" : "error");
+  $("#actualizado").textContent = ok
+    ? `Actualizado ${new Date().toLocaleTimeString("es-CO")}`
+    : "Sin conexión con el servidor";
+}
+
+// ===========================================================================
+// Navegación entre pestañas
+// ===========================================================================
+function mostrarVista(nombre) {
+  if (!CARGADORES[nombre]) nombre = "resumen";
+  vistaActual = nombre;
+  document
+    .querySelectorAll(".pestana")
+    .forEach((b) => b.classList.toggle("activa", b.dataset.vista === nombre));
+  document
+    .querySelectorAll(".vista")
+    .forEach((v) => v.classList.toggle("activa", v.id === `vista-${nombre}`));
+  history.replaceState(null, "", `#${nombre}`);
+  CARGADORES[nombre]();
+}
+
+// ===========================================================================
+// VISTA 1: Resumen
+// ===========================================================================
+function tarjeta(titulo, numero, detalle, color = "") {
+  return `<div class="tarjeta ${color}">
+      <div class="titulo">${esc(titulo)}</div>
+      <div class="numero">${esc(numero)}</div>
+      <div class="detalle">${esc(detalle)}</div>
+    </div>`;
+}
+
+/** HTML seguro (con esc) de un evento para las listas de la pestaña Resumen. */
+function itemEvento(e) {
+  const origen = nombreEquipo(e.device_id) || e.hostname || e.source_ip;
+  const repeticiones =
+    e.repeat_count > 1
+      ? `<span class="rep">×${Number(e.repeat_count)}</span>`
+      : "";
+  return `<div class="item">
+      <div class="item-cab">${insigniaSeveridad(e.severity)} <strong>${esc(origen)}</strong> ${repeticiones}
+        <span class="tenue">${esc(fecha(e.received_at))}</span></div>
+      <div class="item-msg">${esc(e.message)}</div>
+    </div>`;
+}
+
+/** Pestaña Resumen: tarjetas, gráfico por severidad, estado de equipos, críticos y sospechosos. */
+async function cargarResumen() {
+  try {
+    const r = await api("/dashboard/resumen");
+    marcarConexion(true);
+    const ev = r.eventos;
+    const inc = r.incidentes;
+    const eq = r.equipos;
+
+    // Tarjetas
+    $("#tarjetas").innerHTML = [
+      tarjeta(
+        "Equipos",
+        eq.total,
+        `${eq.por_estado.activo || 0} activos · ${eq.por_estado.mantenimiento || 0} en mantenimiento`,
+      ),
+      tarjeta(
+        "Eventos",
+        ev.total_eventos,
+        `${ev.total_mensajes} mensajes · ${ev.ultima_hora} en la última hora`,
+      ),
+      tarjeta(
+        "Críticos (0 a 3)",
+        ev.criticos_0_a_3,
+        "Requieren atención",
+        ev.criticos_0_a_3 ? "rojo" : "",
+      ),
+      tarjeta(
+        "Sospechosos",
+        ev.sospechosos,
+        "Posible inyección para IA",
+        ev.sospechosos ? "morado" : "",
+      ),
+      tarjeta(
+        "Incidentes abiertos",
+        inc.abiertos,
+        `${inc.total} en total`,
+        inc.abiertos ? "naranja" : "",
+      ),
+    ].join("");
+
+    // Gráfico de barras por severidad (0 a 7)
+    const maximo = Math.max(1, ...ev.por_severidad.map((s) => s.eventos));
+    $("#grafico-severidad").innerHTML = ev.por_severidad
+      .map(
+        (s) => `
+      <div class="barra-fila">
+        <span>${insigniaSeveridad(s.severidad)}</span>
+        <div class="barra-pista">
+          <div class="barra s${Number(s.severidad)}" style="width:${(Number(s.eventos) / maximo) * 100}%"></div>
+        </div>
+        <span class="barra-valor">${Number(s.eventos)}</span>
+      </div>`,
+      )
+      .join("");
+
+    // Semáforo de equipos
+    $("#lista-equipos").innerHTML =
+      eq.detalle
+        .map((d) => {
+          let color = "verde";
+          let texto = "Sin eventos críticos";
+          if (d.status !== "activo") {
+            color = "gris";
+            texto =
+              `En ${d.status}` +
+              (d.criticos_24h ? ` · ${d.criticos_24h} críticos` : "");
+          } else if (d.criticos_24h > 0) {
+            color = "rojo";
+            texto = `${d.criticos_24h} eventos críticos`;
+          }
+          return `<div class="equipo">
+          <span class="semaforo ${color}"></span>
+          <div class="equipo-info">
+            <strong>${esc(d.name)}</strong>
+            <small>${esc(d.ip_address)} · ${esc(d.vendor)} · ${esc(texto)}</small>
+          </div>
+          <div class="equipo-cifras">${Number(d.eventos_24h)} eventos<br>${esc(fecha(d.ultimo_evento))}</div>
+        </div>`;
+        })
+        .join("") || `<p class="vacio">No hay equipos</p>`;
+
+    // Listas de críticos y sospechosos
+    $("#lista-criticos").innerHTML =
+      r.criticos_recientes.map(itemEvento).join("") ||
+      `<p class="vacio">Sin eventos críticos</p>`;
+    $("#lista-sospechosos").innerHTML =
+      r.sospechosos_recientes.map(itemEvento).join("") ||
+      `<p class="vacio">Ninguno detectado</p>`;
+  } catch (error) {
+    marcarConexion(false);
+  }
+}
+
+/** Botón 'Simular tráfico': genera 30 mensajes de prueba y recarga el Resumen. */
+async function simularTrafico() {
+  const boton = $("#btn-simular");
+  boton.disabled = true;
+  try {
+    const r = await api("/syslog/simulate?cantidad=30&incluir_ataques=true", {
+      method: "POST",
+    });
+    aviso(
+      `Simulación: ${r.total} mensajes → ${r.nuevo} nuevos, ${r.duplicado} duplicados, ${r.sospechosos} sospechosos`,
+    );
+    await cargarResumen();
+  } catch (error) {
+    aviso(error.message, "error");
+  } finally {
+    boton.disabled = false;
+  }
+}
+
+// ===========================================================================
+// VISTA 2: Eventos con filtros
+// ===========================================================================
+/** Fase 10: GigabitEthernet1/0/5 -> Gi1/0/5 (para que quepa en la tabla). */
+function nombreCortoPuerto(nombre) {
+  return String(nombre)
+    .replace(/^TenGigabitEthernet/, "Te")
+    .replace(/^GigabitEthernet/, "Gi")
+    .replace(/^FastEthernet/, "Fa")
+    .replace(/^Port-channel/, "Po");
+}
+/** Fila HTML segura de la tabla de Eventos, con el botón 🔌 del puerto si el mensaje lo menciona. */
+function filaEvento(e) {
+  const equipo = nombreEquipo(e.device_id);
+  const origen = equipo
+    ? `<strong>${esc(equipo)}</strong>`
+    : `${esc(e.hostname || "—")}<br><span class="tenue">${esc(e.source_ip)} · no registrado</span>`;
+  const ia = e.flagged_suspicious
+    ? `<br><span class="etiqueta-ia">⚠ POSIBLE INYECCIÓN IA</span>`
+    : "";
+  return `<tr class="${e.flagged_suspicious ? "sospechoso" : ""}">
+      <td>${esc(fecha(e.received_at))}</td>
+      <td>${insigniaSeveridad(e.severity)}</td>
+      <td>${origen}</td>
+      <td>${esc(e.vendor || "—")}</td>
+      <td>${esc(e.app_name || "—")}</td>
+                 <td>${e.interfaz ? `<button class="btn mini puerto" data-puerto="${Number(e.id)}" title="${esc(e.interfaz)}">🔌 ${esc(nombreCortoPuerto(e.interfaz))}</button>` : "—"}</td>
+      <td class="msg">${esc(e.message)}${ia}</td>
+      <td>${Number(e.repeat_count)}</td>
+      <td><button class="btn mini secundario" data-crear-incidente="${Number(e.id)}">Crear incidente</button></td>
+    </tr>`;
+}
+
+/** No permitir fechas futuras en los filtros (el servidor también lo valida). */
+function limitarFechasEventos() {
+  const ahora = new Date();
+  ahora.setMinutes(ahora.getMinutes() - ahora.getTimezoneOffset() + 5); // hora local + 5 min de tolerancia (igual que el servidor)
+  const maximo = ahora.toISOString().slice(0, 16); // formato AAAA-MM-DDTHH:MM
+  const form = $("#filtros-eventos");
+  form.elements.desde.max = maximo;
+  form.elements.hasta.max = maximo;
+  form.elements.hasta.min = form.elements.desde.value || "";
+}
+
+/** Pestaña Eventos: valida las fechas, aplica los filtros y dibuja la tabla. */
+async function cargarEventos() {
+  limitarFechasEventos();
+  const f = new FormData($("#filtros-eventos"));
+  const desdeTxt = f.get("desde"),
+    hastaTxt = f.get("hasta");
+  if (desdeTxt && new Date(desdeTxt) > new Date())
+    return aviso("La fecha 'Desde' no puede estar en el futuro", "error");
+  if (hastaTxt && new Date(hastaTxt) > new Date())
+    return aviso("La fecha 'Hasta' no puede estar en el futuro", "error");
+  if (desdeTxt && hastaTxt && new Date(desdeTxt) > new Date(hastaTxt))
+    return aviso("La fecha 'Desde' no puede ser posterior a 'Hasta'", "error");
+  const p = new URLSearchParams({ limite: 200 });
+  for (const campo of ["vendor", "device_id", "severidad_max"]) {
+    if (f.get(campo)) p.set(campo, f.get(campo));
+  }
+  for (const campo of ["desde", "hasta"]) {
+    if (f.get(campo)) p.set(campo, new Date(f.get(campo)).toISOString()); // hora local -> UTC
+  }
+  if (f.get("solo_sospechosos")) p.set("solo_sospechosos", "true");
+
+  try {
+    const eventos = await api(`/events?${p}`);
+    $("#conteo-eventos").textContent =
+      `${eventos.length} eventos (máximo 200, del más reciente al más antiguo)`;
+    $("#tabla-eventos").innerHTML =
+      eventos.map(filaEvento).join("") ||
+      `<tr><td colspan="9" class="vacio">No hay eventos con esos filtros</td></tr>`;
+  } catch (error) {
+    aviso(error.message, "error");
+  }
+}
+
+/** Botón 'Crear incidente' de una fila de Eventos. */
+async function crearIncidenteDesdeEvento(idEvento) {
+  try {
+    const inc = await api(`/incidents/from-event/${idEvento}`, {
+      method: "POST",
+    });
+    aviso(`Incidente #${inc.id} creado. Revíselo en la pestaña Incidentes.`);
+  } catch (error) {
+    aviso(error.message, "error");
+  }
+}
+
+// ===========================================================================
+// VISTA 3: Incidentes
+// ===========================================================================
+function tarjetaIncidente(i) {
+  const id = Number(i.id);
+  const acciones = [];
+  if (i.status === "abierto") {
+    acciones.push(
+      `<button class="btn mini" data-accion="asignar" data-id="${id}">Asignar</button>`,
+    );
+  }
+  if (i.status === "asignado") {
+    acciones.push(
+      `<button class="btn mini" data-accion="iniciar" data-id="${id}">Iniciar trabajo</button>`,
+    );
+  }
+  if (i.status !== "cerrado") {
+    acciones.push(
+      `<button class="btn mini secundario" data-accion="cerrar" data-id="${id}">Cerrar</button>`,
+    );
+  }
+  const equipo = nombreEquipo(i.device_id);
+  return `<article class="incidente">
+      <div class="item-cab">
+        <span class="estado ${esc(i.status)}">${esc(NOMBRE_ESTADO[i.status] || i.status)}</span>
+        ${insigniaSeveridad(i.severity)} <span class="tenue">#${id}</span>
+      </div>
+      <h3>${esc(i.title)}</h3>
+      ${i.description ? `<p class="meta">${esc(i.description)}</p>` : ""}
+      <p class="meta">
+        Responsable: <strong>${esc(i.assigned_to || "sin asignar")}</strong>${equipo ? ` · Equipo: ${esc(equipo)}` : ""}<br>
+        Creado: ${esc(fecha(i.created_at))}${i.closed_at ? ` · Cerrado: ${esc(fecha(i.closed_at))}` : ""}
+      </p>
+      ${i.resolution ? `<div class="resolucion"><strong>Resolución:</strong> ${esc(i.resolution)}</div>` : ""}
+      ${acciones.length ? `<div class="botones">${acciones.join("")}</div>` : ""}
+    </article>`;
+}
+
+/** Pestaña Incidentes: lista los incidentes según el filtro de estado. */
+async function cargarIncidentes() {
+  const estado = $("#filtro-estado").value;
+  try {
+    const lista = await api(
+      `/incidents${estado ? `?estado=${encodeURIComponent(estado)}` : ""}`,
+    );
+    $("#lista-incidentes").innerHTML =
+      lista.map(tarjetaIncidente).join("") ||
+      `<p class="vacio">No hay incidentes</p>`;
+  } catch (error) {
+    aviso(error.message, "error");
+  }
+}
+
+/** Botones Asignar / Iniciar trabajo / Cerrar de un incidente. */
+async function accionIncidente(accion, id) {
+  let cambios;
+  if (accion === "asignar") {
+    const nombre = prompt("¿Quién se hace responsable de este incidente?");
+    if (!nombre) return;
+    cambios = { assigned_to: nombre.trim() };
+  } else if (accion === "iniciar") {
+    cambios = { status: "en_progreso" };
+  } else if (accion === "cerrar") {
+    const resolucion = prompt("Describa la resolución (mínimo 10 caracteres):");
+    if (!resolucion) return;
+    cambios = { status: "cerrado", resolution: resolucion.trim() };
+  } else {
+    return;
+  }
+  try {
+    await api(`/incidents/${Number(id)}`, {
+      method: "PUT",
+      body: JSON.stringify(cambios),
+    });
+    aviso(`Incidente #${id} actualizado`);
+    cargarIncidentes();
+  } catch (error) {
+    aviso(error.message, "error"); // aquí se ven las reglas del servidor (ej. resolución corta)
+  }
+}
+
+/** Formulario '+ Nuevo incidente manual'. */
+async function crearIncidenteManual(evento) {
+  evento.preventDefault();
+  const form = evento.target;
+  const f = new FormData(form);
+  const datos = {
+    title: f.get("title").trim(),
+    severity: Number(f.get("severity")),
+  };
+  if (f.get("device_id")) datos.device_id = Number(f.get("device_id"));
+  if (f.get("assigned_to").trim())
+    datos.assigned_to = f.get("assigned_to").trim();
+  if (f.get("description").trim())
+    datos.description = f.get("description").trim();
+  try {
+    const inc = await api("/incidents", {
+      method: "POST",
+      body: JSON.stringify(datos),
+    });
+    aviso(`Incidente #${inc.id} creado (${inc.status})`);
+    form.reset();
+    cargarIncidentes();
+  } catch (error) {
+    aviso(error.message, "error");
+  }
+}
+
+// ===========================================================================
+// VISTA 4: Inventario
+// ===========================================================================
+async function cargarEquipos() {
+  equipos = await api("/devices");
+  // Llena las listas desplegables de equipos (new Option escribe texto seguro)
+  document.querySelectorAll(".select-equipos").forEach((select) => {
+    const primera = select.options[0];
+    select.innerHTML = "";
+    select.appendChild(primera);
+    equipos.forEach((d) => select.appendChild(new Option(d.name, d.id)));
+  });
+}
+
+/** Pestaña Inventario: tabla de equipos con sus botones Editar, Eliminar y Puertos. */
+async function cargarInventario() {
+  try {
+    await cargarEquipos();
+    $("#tabla-equipos").innerHTML =
+      equipos
+        .map(
+          (d) => `
+      <tr>
+                <td><strong>${esc(d.name)}</strong>${d.is_simulated ? "" : ' <span class="etiqueta-real">REAL</span>'}</td>
+        <td>${esc(d.ip_address)}</td>
+        <td>${esc(d.vendor)}</td>
+        <td>${esc(d.model || "—")}</td>
+        <td>${esc(d.os_version || "—")}</td>
+        <td>${esc(d.location || "—")}</td>
+        <td><span class="estado-equipo ${esc(d.status)}">${esc(d.status)}</span></td>
+        <td>${esc(fecha(d.updated_at))}</td>
+        <td><div class="botones">
+                  <button class="btn mini secundario" data-puertos="${Number(d.id)}">Puertos</button>
+        <button class="btn mini secundario" data-editar="${Number(d.id)}">Editar</button>
+          <button class="btn mini peligro" data-eliminar="${Number(d.id)}">Eliminar</button>
+        </div></td>
+      </tr>`,
+        )
+        .join("") ||
+      `<tr><td colspan="9" class="vacio">No hay equipos</td></tr>`;
+  } catch (error) {
+    aviso(error.message, "error");
+  }
+}
+
+/** Carga los datos de un equipo en el formulario para editarlo. */
+function editarEquipo(id) {
+  const d = equipos.find((e) => e.id === id);
+  if (!d) return;
+  const form = $("#form-equipo");
+  for (const campo of [
+    "id",
+    "name",
+    "ip_address",
+    "vendor",
+    "model",
+    "os_version",
+    "location",
+    "status",
+  ]) {
+    form.elements[campo].value = d[campo] ?? "";
+  }
+  form.elements.tipo_equipo.value = d.is_simulated ? "simulado" : "real";
+  $("#titulo-form-equipo").textContent = `Editar equipo: ${d.name}`;
+  form.scrollIntoView({ behavior: "smooth" });
+}
+
+/** Deja el formulario de equipos listo para agregar uno nuevo. */
+function limpiarFormEquipo() {
+  const form = $("#form-equipo");
+  form.reset();
+  form.elements.id.value = "";
+  $("#titulo-form-equipo").textContent = "Agregar equipo";
+}
+
+/** Guarda el equipo del formulario (crea uno nuevo o edita el existente). */
+async function guardarEquipo(evento) {
+  evento.preventDefault();
+  const f = new FormData(evento.target);
+  const id = f.get("id");
+  const datos = {};
+  for (const campo of [
+    "name",
+    "ip_address",
+    "vendor",
+    "model",
+    "os_version",
+    "location",
+    "status",
+  ]) {
+    const valor = String(f.get(campo) ?? "").trim();
+    if (valor) datos[campo] = valor;
+  }
+  datos.is_simulated = f.get("tipo_equipo") !== "real"; // Fase 9: equipos reales del laboratorio
+  try {
+    if (id) {
+      await api(`/devices/${Number(id)}`, {
+        method: "PUT",
+        body: JSON.stringify(datos),
+      });
+    } else {
+      await api("/devices", { method: "POST", body: JSON.stringify(datos) });
+    }
+    aviso(id ? "Equipo actualizado" : "Equipo creado");
+    limpiarFormEquipo();
+    cargarInventario();
+  } catch (error) {
+    aviso(error.message, "error"); // ej.: IP real en equipo simulado, nombre duplicado
+  }
+}
+
+/** Elimina un equipo después de confirmar (el servidor protege los que tienen historia). */
+async function eliminarEquipo(id) {
+  const d = equipos.find((e) => e.id === id);
+  if (
+    !confirm(
+      `¿Eliminar el equipo ${d ? d.name : id}? La acción queda registrada en la auditoría.`,
+    )
+  )
+    return;
+  try {
+    await api(`/devices/${id}`, { method: "DELETE" });
+    aviso("Equipo eliminado");
+    cargarInventario();
+  } catch (error) {
+    aviso(error.message, "error"); // ej.: tiene eventos asociados
+  }
+}
+
+// ===========================================================================
+// Arranque
+// ===========================================================================
+const CARGADORES = {
+  resumen: cargarResumen,
+  eventos: cargarEventos,
+  incidentes: cargarIncidentes,
+  inventario: cargarInventario,
+};
+
+/** Llena las listas de severidad (0 a 7) de los formularios y filtros. */
+function llenarSelectsSeveridad() {
+  document.querySelectorAll(".select-severidad").forEach((select) => {
+    const tieneOpcionVacia = select.options.length > 0; // "Todas"
+    SEVERIDADES.forEach((nombre, n) => {
+      const porDefecto = !tieneOpcionVacia && n === 3; // formularios: 3 (Error) por defecto
+      select.appendChild(
+        new Option(`${n} - ${nombre}`, n, porDefecto, porDefecto),
+      );
+    });
+  });
+}
+
+/** Conecta los botones y formularios de la página con sus funciones (pestañas, filtros, formularios). */
+function conectarEventos() {
+  document
+    .querySelectorAll(".pestana")
+    .forEach((b) =>
+      b.addEventListener("click", () => mostrarVista(b.dataset.vista)),
+    );
+  $("#btn-simular").addEventListener("click", simularTrafico);
+
+  $("#filtros-eventos").addEventListener("submit", (e) => {
+    e.preventDefault();
+    cargarEventos();
+  });
+  $("#filtros-eventos").addEventListener("reset", () =>
+    setTimeout(cargarEventos, 0),
+  );
+  $("#tabla-eventos").addEventListener("click", (e) => {
+    const boton = e.target.closest("[data-crear-incidente]");
+    if (boton) crearIncidenteDesdeEvento(boton.dataset.crearIncidente);
+  });
+
+  $("#filtro-estado").addEventListener("change", cargarIncidentes);
+  $("#form-incidente").addEventListener("submit", crearIncidenteManual);
+  $("#lista-incidentes").addEventListener("click", (e) => {
+    const boton = e.target.closest("[data-accion]");
+    if (boton) accionIncidente(boton.dataset.accion, boton.dataset.id);
+  });
+
+  $("#form-equipo").addEventListener("submit", guardarEquipo);
+  $("#btn-cancelar-equipo").addEventListener("click", limpiarFormEquipo);
+  $("#tabla-equipos").addEventListener("click", (e) => {
+    const editar = e.target.closest("[data-editar]");
+    const eliminar = e.target.closest("[data-eliminar]");
+    if (editar) editarEquipo(Number(editar.dataset.editar));
+    if (eliminar) eliminarEquipo(Number(eliminar.dataset.eliminar));
+  });
+}
+
+/** Arranque del dashboard: prepara los formularios, carga los equipos y abre la pestaña de la URL. */
+async function iniciar() {
+  llenarSelectsSeveridad();
+  conectarEventos();
+  try {
+    await cargarEquipos();
+  } catch {
+    marcarConexion(false);
+  }
+  mostrarVista(location.hash.slice(1) || "resumen");
+  setInterval(() => {
+    if (vistaActual === "resumen") cargarResumen();
+  }, ACTUALIZAR_CADA_MS);
+}
+
+document.addEventListener("DOMContentLoaded", iniciar);
+
+// v1.0.0: recalcular el límite de fechas cada vez que se abre el calendario
+document.addEventListener("DOMContentLoaded", () => {
+  ["desde", "hasta"].forEach((campo) =>
+    $("#filtros-eventos").elements[campo].addEventListener(
+      "focus",
+      limitarFechasEventos,
+    ),
+  );
+});

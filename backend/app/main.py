@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
 
 from . import auditor as auditor_mod
-from . import models
+from . import models, vigilancia
 from .config import APP_NAME, APP_VERSION, BASE_DIR
 from .database import MOTOR, Base, SessionLocal, engine, get_db
 from .routers import (
@@ -37,6 +37,9 @@ from .seguridad import autorizar
 
 # Crea las tablas que falten (incluye users, user_sessions y notifications)
 Base.metadata.create_all(bind=engine)
+
+# v1.1.0: vigilancia por ping de los equipos reales (solo si NOC_MONITOREO_PING=true en el .env)
+vigilancia.iniciar_ping()
 
 app = FastAPI(
     title=APP_NAME,

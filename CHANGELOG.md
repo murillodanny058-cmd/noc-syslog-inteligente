@@ -2,6 +2,47 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es/).
 
+## [1.1.0] - 2026-10-30 — Equipo apagado y notificaciones rápidas (hallazgos 3 y 2)
+
+- **Equipo apagado (hallazgo 3)**: un equipo apagado no puede avisar que se apagó; ahora el NOC
+  le pregunta. La consola real envía un Enter ("latido") cuando lleva 20 s en silencio; si el
+  equipo no contesta 2 veces seguidas se genera el evento `%NOC-1-EQUIPO_SIN_RESPUESTA`
+  (severidad 1), se abre un incidente automático, el equipo pasa a `inactivo` y llega el aviso
+  por Telegram y correo. Al volver: evento `%NOC-5-EQUIPO_RECUPERADO` con el tiempo caído,
+  aviso "recuperado", nota en el incidente y el equipo vuelve a `activo`.
+- Si se desconecta el cable USB de consola: evento `%NOC-2-CONSOLA_PERDIDA`.
+- **Ping opcional** a los equipos reales con IP (`NOC_MONITOREO_PING=true` en el .env).
+- Los equipos en `mantenimiento` (apagado planeado) guardan el evento pero no avisan.
+- Resumen: la tarjeta Equipos y el semáforo muestran "SIN RESPUESTA hace N min".
+- **Notificaciones más rápidas (hallazgo 2)**: una cola y un hilo por canal; Telegram ya no
+  espera a que termine el correo. Cada aviso guarda cuánto tardó ("Entregado en X s").
+- Nuevas pruebas: `python -m backend.scripts.pruebas_v11` (15 pruebas, sin cable ni Telegram).
+
+## [1.0.4] - 2026-10-29 — Marca del equipo revisada todo el tiempo
+
+- La consola real revisa la marca no solo al conectar: también cuando el prompt aparece después
+  y con cada log (formato Cisco o Huawei). Si no coincide con el equipo elegido, bloquea y no
+  guarda logs a nombre de otro equipo (hallazgo: logs del Huawei AR611 guardados como LAB-SW01).
+
+## [1.0.3] - 2026-10-29 — Prueba con equipo Huawei físico
+
+- Los logs que llegan por el cable de consola se guardan a nombre del equipo CONECTADO
+  (antes se buscaba por IP y, con IPs repetidas, quedaban a nombre de otro equipo).
+- El inventario ya no permite dos equipos con la misma IP.
+- Se reconocen los traps de Huawei sin "%%" (ej. `IFNET/1/IF_LINKDOWN`, severidad 1 Alert),
+  que ahora sí generan alerta por Telegram.
+- El parser entiende el formato de la consola Huawei: zona horaria (+00:00) y nombre del
+  equipo con espacios; la columna Aplicación muestra el módulo (ej. IFPDT/4/IF_STATE).
+
+## [1.0.2] - 2026-10-24 — Apariencia "sala de control"
+
+- Login con una red de equipos animada de fondo (SVG propio, sin imágenes externas ni derechos de autor),
+  tarjeta semitransparente y brillo azul.
+- Dashboard con una cuadrícula y brillos muy suaves en el fondo, encabezado semitransparente y una línea de
+  luz; los paneles con datos siguen sólidos para no perder legibilidad.
+- Las animaciones se apagan si el sistema pide menos movimiento (accesibilidad).
+- Solo cambios visuales (CSS y HTML): sin cambios de funcionamiento.
+
 ## [1.0.1] - 2026-10-24 — Calidad de código
 
 - **Formato uniforme**: Python con `ruff format` (PEP 8, líneas de 110) y JavaScript, CSS y HTML con Prettier.

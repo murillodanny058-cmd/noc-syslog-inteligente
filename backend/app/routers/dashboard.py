@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import case, func
 from sqlalchemy.orm import Session
 
+from .. import vigilancia
 from ..database import get_db
 from ..models import Device, Incident, SyslogEvent
 from ..schemas import EventOut
@@ -45,6 +46,7 @@ def resumen(db: Session = Depends(get_db)):
             .all()
         )
     }
+    caidos = {c["device_id"]: c for c in vigilancia.estado()["caidos"]}  # v1.1.0
     equipos = []
     for d in db.query(Device).order_by(Device.name).all():
         total, criticos, ultimo = actividad.get(d.id, (0, 0, None))
@@ -58,6 +60,7 @@ def resumen(db: Session = Depends(get_db)):
                 "eventos_24h": total,
                 "criticos_24h": criticos,
                 "ultimo_evento": ultimo,
+                "caido": caidos.get(d.id),  # v1.1.0: None si responde
             }
         )
 
@@ -84,7 +87,12 @@ def resumen(db: Session = Depends(get_db)):
 
     return {
         "generado": ahora,
-        "equipos": {"total": sum(por_estado.values()), "por_estado": por_estado, "detalle": equipos},
+        "equipos": {
+            "total": sum(por_estado.values()),
+            "por_estado": por_estado,
+            "detalle": equipos,
+            "caidos": len(caidos),
+        },
         "eventos": {**estadisticas(db), "ultima_hora": ultima_hora},
         "incidentes": {
             "total": total_inc,
@@ -94,3 +102,9 @@ def resumen(db: Session = Depends(get_db)):
         "criticos_recientes": _eventos(criticos),
         "sospechosos_recientes": _eventos(sospechosos),
     }
+
+
+@router.get("/vigilancia", summary="Equipos que no responden (consola o ping)")
+def ver_vigilancia():
+    """v1.1.0: equipos caídos ahora mismo y configuración del ping."""
+    return vigilancia.estado()

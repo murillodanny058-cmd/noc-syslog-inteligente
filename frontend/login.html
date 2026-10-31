@@ -7,12 +7,302 @@
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body class="pagina-login">
+    <!-- v1.0.2: fondo decorativo, una red de equipos dibujada en SVG (sin imágenes externas) -->
+    <svg
+      class="fondo-red"
+      viewBox="0 0 1600 900"
+      preserveAspectRatio="xMidYMid slice"
+      aria-hidden="true"
+    >
+      <g class="red-enlaces">
+        <line x1="800" y1="450" x2="560" y2="300" />
+        <line x1="800" y1="450" x2="1040" y2="300" />
+        <line x1="800" y1="450" x2="560" y2="600" />
+        <line x1="800" y1="450" x2="1040" y2="600" />
+        <line x1="560" y1="300" x2="1040" y2="300" />
+        <line x1="560" y1="600" x2="1040" y2="600" />
+        <line x1="560" y1="300" x2="560" y2="600" />
+        <line x1="1040" y1="300" x2="1040" y2="600" />
+        <line x1="560" y1="300" x2="220" y2="150" />
+        <line x1="560" y1="300" x2="420" y2="110" />
+        <line x1="560" y1="600" x2="420" y2="110" />
+        <line x1="560" y1="300" x2="700" y2="90" />
+        <line x1="1040" y1="300" x2="940" y2="120" />
+        <line x1="1040" y1="300" x2="1200" y2="90" />
+        <line x1="1040" y1="600" x2="1200" y2="90" />
+        <line x1="1040" y1="300" x2="1420" y2="170" />
+        <line x1="1040" y1="300" x2="1500" y2="380" />
+        <line x1="1040" y1="600" x2="1460" y2="620" />
+        <line x1="1040" y1="300" x2="1460" y2="620" />
+        <line x1="1040" y1="600" x2="1300" y2="800" />
+        <line x1="1040" y1="600" x2="1060" y2="820" />
+        <line x1="560" y1="600" x2="800" y2="840" />
+        <line x1="1040" y1="600" x2="800" y2="840" />
+        <line x1="560" y1="600" x2="520" y2="800" />
+        <line x1="560" y1="600" x2="300" y2="760" />
+        <line x1="560" y1="600" x2="120" y2="600" />
+        <line x1="560" y1="300" x2="120" y2="600" />
+        <line x1="560" y1="300" x2="90" y2="380" />
+        <line x1="560" y1="300" x2="260" y2="430" />
+        <line x1="1040" y1="600" x2="1340" y2="460" />
+        <line x1="1040" y1="300" x2="1340" y2="460" />
+        <line x1="560" y1="600" x2="380" y2="520" />
+        <line x1="940" y1="120" x2="1200" y2="90" />
+        <line x1="1460" y1="620" x2="1300" y2="800" />
+        <line x1="520" y1="800" x2="300" y2="760" />
+        <line x1="260" y1="430" x2="1340" y2="460" />
+      </g>
+      <g class="red-paquetes">
+        <line
+          x1="800"
+          y1="450"
+          x2="560"
+          y2="300"
+          style="animation-delay: -0s"
+        />
+        <line
+          x1="800"
+          y1="450"
+          x2="1040"
+          y2="300"
+          style="animation-delay: -0.9s"
+        />
+        <line
+          x1="800"
+          y1="450"
+          x2="560"
+          y2="600"
+          style="animation-delay: -1.8s"
+        />
+        <line
+          x1="800"
+          y1="450"
+          x2="1040"
+          y2="600"
+          style="animation-delay: -2.7s"
+        />
+        <line
+          x1="560"
+          y1="300"
+          x2="1040"
+          y2="300"
+          style="animation-delay: -3.6s"
+        />
+        <line
+          x1="560"
+          y1="600"
+          x2="1040"
+          y2="600"
+          style="animation-delay: -4.5s"
+        />
+        <line
+          x1="560"
+          y1="300"
+          x2="560"
+          y2="600"
+          style="animation-delay: -5.4s"
+        />
+        <line
+          x1="1040"
+          y1="300"
+          x2="1040"
+          y2="600"
+          style="animation-delay: -6.3s"
+        />
+        <line
+          x1="560"
+          y1="600"
+          x2="420"
+          y2="110"
+          style="animation-delay: -7.2s"
+        />
+        <line
+          x1="1040"
+          y1="300"
+          x2="940"
+          y2="120"
+          style="animation-delay: -8.1s"
+        />
+        <line
+          x1="1040"
+          y1="600"
+          x2="1200"
+          y2="90"
+          style="animation-delay: -9s"
+        />
+      </g>
+      <g class="red-nodos">
+        <circle
+          class="nodo-nucleo red-pulso"
+          cx="800"
+          cy="450"
+          r="11"
+          style="animation-delay: -0s"
+        />
+        <circle
+          class="nodo-dist red-pulso"
+          cx="560"
+          cy="300"
+          r="7"
+          style="animation-delay: -0.37s"
+        />
+        <circle
+          class="nodo-dist red-pulso"
+          cx="1040"
+          cy="300"
+          r="7"
+          style="animation-delay: -0.74s"
+        />
+        <circle
+          class="nodo-dist red-pulso"
+          cx="560"
+          cy="600"
+          r="7"
+          style="animation-delay: -1.11s"
+        />
+        <circle
+          class="nodo-dist red-pulso"
+          cx="1040"
+          cy="600"
+          r="7"
+          style="animation-delay: -1.48s"
+        />
+        <circle
+          class="nodo-acceso red-pulso"
+          cx="220"
+          cy="150"
+          r="4"
+          style="animation-delay: -1.85s"
+        />
+        <circle
+          class="nodo-acceso"
+          cx="420"
+          cy="110"
+          r="4"
+          style="animation-delay: -2.22s"
+        />
+        <circle
+          class="nodo-acceso"
+          cx="700"
+          cy="90"
+          r="4"
+          style="animation-delay: -2.59s"
+        />
+        <circle
+          class="nodo-acceso"
+          cx="940"
+          cy="120"
+          r="4"
+          style="animation-delay: -2.96s"
+        />
+        <circle
+          class="nodo-acceso"
+          cx="1200"
+          cy="90"
+          r="4"
+          style="animation-delay: -0.33s"
+        />
+        <circle
+          class="nodo-acceso red-pulso"
+          cx="1420"
+          cy="170"
+          r="4"
+          style="animation-delay: -0.7s"
+        />
+        <circle
+          class="nodo-acceso"
+          cx="1500"
+          cy="380"
+          r="4"
+          style="animation-delay: -1.07s"
+        />
+        <circle
+          class="nodo-acceso"
+          cx="1460"
+          cy="620"
+          r="4"
+          style="animation-delay: -1.44s"
+        />
+        <circle
+          class="nodo-acceso"
+          cx="1300"
+          cy="800"
+          r="4"
+          style="animation-delay: -1.81s"
+        />
+        <circle
+          class="nodo-acceso"
+          cx="1060"
+          cy="820"
+          r="4"
+          style="animation-delay: -2.18s"
+        />
+        <circle
+          class="nodo-acceso red-pulso"
+          cx="800"
+          cy="840"
+          r="4"
+          style="animation-delay: -2.55s"
+        />
+        <circle
+          class="nodo-acceso"
+          cx="520"
+          cy="800"
+          r="4"
+          style="animation-delay: -2.92s"
+        />
+        <circle
+          class="nodo-acceso"
+          cx="300"
+          cy="760"
+          r="4"
+          style="animation-delay: -0.29s"
+        />
+        <circle
+          class="nodo-acceso"
+          cx="120"
+          cy="600"
+          r="4"
+          style="animation-delay: -0.66s"
+        />
+        <circle
+          class="nodo-acceso"
+          cx="90"
+          cy="380"
+          r="4"
+          style="animation-delay: -1.03s"
+        />
+        <circle
+          class="nodo-acceso red-pulso"
+          cx="260"
+          cy="430"
+          r="4"
+          style="animation-delay: -1.4s"
+        />
+        <circle
+          class="nodo-acceso"
+          cx="1340"
+          cy="460"
+          r="4"
+          style="animation-delay: -1.77s"
+        />
+        <circle
+          class="nodo-acceso"
+          cx="380"
+          cy="520"
+          r="4"
+          style="animation-delay: -2.14s"
+        />
+      </g>
+    </svg>
     <main class="caja-login panel">
       <div class="marca">
         <span class="logo" aria-hidden="true">📡</span>
         <div>
           <h1>NOC Syslog Inteligente</h1>
-          <p class="subtitulo">v1.0.0 · Acceso restringido</p>
+          <p class="subtitulo">
+            v1.0.2 · Centro de Operaciones de Red · Acceso restringido
+          </p>
         </div>
       </div>
       <form id="form-login" class="formulario-login">
